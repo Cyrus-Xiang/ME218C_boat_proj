@@ -33,14 +33,17 @@
 
 /*---------------------------- Module Variables ---------------------------*/
 // with the introduction of Gen2, we need a module level Priority variable
-#define thruster_PWM_period_us 20000 //in microseconds
-#define ticks_per_us 2.5 //for 40MHz clock
-#define numOfOC_channels 2 //total number of OC channels configured
-#define OCchannel_4_thruster 1 //should be btw 1 to 5
-#define InitialPulseWidth_us 1700//in microseconds 
-static WhichTimer_t timer_4_thruster = _Timer2_;
-static PWM_PinMap_t OCpin_4_thruster_L = PWM_RPB3;//pin for the left thruster
+
+#define low_PW_us 500
+#define upper_PW_us 2500
+static uint16_t PWM_period_us = 20000;
+static float ticks_per_us = 2.5;
+// static uint32_t LastAD_Val [Num_AD_Channels];
 static uint8_t MyPriority;
+static uint8_t DutyCycle;
+static uint16_t PulseWidth;
+static uint16_t PW_mid_us;
+static uint16_t PW_range_us;
 
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
@@ -66,19 +69,47 @@ bool InitThrusterService(uint8_t Priority)
   ES_Event_t ThisEvent;
   DB_printf("start initializing thruster service\n");
   MyPriority = Priority;
-  //configure the pins
-  // ANSELBbits.ANSB3 = 0; //set pin 3 to digital
-  // TRISBbits.TRISB3 = 0; //set pin 3 to output
-  //Initialize the PWM module
-  PWMSetup_BasicConfig(1);
-  PWMSetup_AssignChannelToTimer(1, _Timer2_); //assign OC1 to Timer2
-  //PWMSetup_SetPeriodOnTimer(thruster_PWM_period_us*ticks_per_us, timer_4_thruster); 
-  PWMSetup_SetFreqOnTimer(50, _Timer2_); //50Hz
-  PWMSetup_MapChannelToOutputPin(1, PWM_RPB3); //assign OC1 to pin 3
-  //set some initial duty cycle for the channels
-  //PWMOperate_SetPulseWidthOnChannel(InitialPulseWidth_us*ticks_per_us,OCchannel_4_thruster); 
-  PWMOperate_SetDutyOnChannel(50, 1); 
-  DB_printf("PWM setup done\n");
+  // configure the pins
+  //  ANSELBbits.ANSB3 = 0; //set pin 3 to digital
+  //  TRISBbits.TRISB3 = 0; //set pin 3 to output
+  // Initialize the PWM module
+
+  // code from me218a
+  DB_printf("PWM period is initially %d us\n", PWM_period_us);
+  DB_printf("ticks_per_us * PWM period is %d\n", ((uint16_t) ticks_per_us*PWM_period_us));
+  if (!PWMSetup_BasicConfig(1))
+  {
+    DB_printf("PWMSetup_BasicConfig failed\n");
+  }
+
+  if (!PWMSetup_SetPeriodOnTimer((uint16_t) PWM_period_us * ticks_per_us, _Timer2_))
+  {
+    DB_printf("PWMSetup_SetPeriodOnTimer failed\n");
+  }
+  else
+  {
+    DB_printf("PWM period is set to %d ticks, which is %d us \n", (uint16_t)PWM_period_us * ticks_per_us, PWM_period_us);
+    DB_printf("PWM period is initially %d us\n", PWM_period_us);  
+  }
+  if (!PWMSetup_AssignChannelToTimer(1, _Timer2_))
+  {
+    DB_printf("PWMSetup_AssignChannelToTimer failed\n");
+  }
+ 
+  if (!PWMSetup_MapChannelToOutputPin(1, PWM_RPB3))
+  {
+    DB_printf("PWMSetup_MapChannelToOutputPin failed\n");
+  }
+  else
+  {
+    DB_printf("PWM channel 1 is mapped to pin B3\n");
+  }
+  PW_range_us = upper_PW_us - low_PW_us;
+  PW_mid_us = (uint16_t)PW_range_us / 2 + low_PW_us;
+  PulseWidth = PW_mid_us * ticks_per_us;
+
+  PWMOperate_SetPulseWidthOnChannel(PulseWidth, 1);
+  DB_printf("PWM pulse width is set to %u ticks \n", PulseWidth);
   /********************************************
    in here you write your initialization code
    *******************************************/
@@ -149,4 +180,3 @@ ES_Event_t RunThrusterService(ES_Event_t ThisEvent)
 
 /*------------------------------- Footnotes -------------------------------*/
 /*------------------------------ End of file ------------------------------*/
-
