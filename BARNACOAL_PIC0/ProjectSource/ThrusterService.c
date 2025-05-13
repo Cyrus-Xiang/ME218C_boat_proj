@@ -1,12 +1,12 @@
 /****************************************************************************
  Module
-   TemplateService.c
+   ThrusterService.c
 
  Revision
    1.0.1
 
  Description
-   This is a template file for implementing a simple service under the
+   This is a Thruster file for implementing a simple service under the
    Gen2 Events and Services Framework.
 
  Notes
@@ -22,7 +22,7 @@
 */
 #include "ES_Configure.h"
 #include "ES_Framework.h"
-#include "TemplateService.h"
+#include "ThrusterService.h"
 #include "PWM_PIC32.h"
 /*----------------------------- Module Defines ----------------------------*/
 
@@ -45,7 +45,7 @@ static uint8_t MyPriority;
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
-     InitTemplateService
+     InitThrusterService
 
  Parameters
      uint8_t : the priorty of this service
@@ -61,7 +61,7 @@ static uint8_t MyPriority;
  Author
      J. Edward Carryer, 01/16/12, 10:00
 ****************************************************************************/
-bool InitTemplateService(uint8_t Priority)
+bool InitThrusterService(uint8_t Priority)
 {
   ES_Event_t ThisEvent;
 
@@ -70,14 +70,14 @@ bool InitTemplateService(uint8_t Priority)
   ANSELBbits.ANSB3 = 0; //set pin 3 to digital
   TRISBbits.TRISB3 = 0; //set pin 3 to output
   //Initialize the PWM module
-  PWMSetup_BasicConfig(numOfOC_channels);
-  PWMSetup_AssignChannelToTimer(OCchannel_4_thruster, timer_4_thruster); //assign OC1 to Timer2
+  PWMSetup_BasicConfig(1);
+  PWMSetup_AssignChannelToTimer(1, _Timer2_); //assign OC1 to Timer2
   //PWMSetup_SetPeriodOnTimer(thruster_PWM_period_us*ticks_per_us, timer_4_thruster); 
-  PWMSetup_SetFreqOnTimer(50, timer_4_thruster); //50Hz
-  PWMSetup_MapChannelToOutputPin(OCchannel_4_thruster, OCpin_4_thruster_L); //assign OC1 to pin 3
+  PWMSetup_SetFreqOnTimer(50, _Timer2_); //50Hz
+  PWMSetup_MapChannelToOutputPin(1, PWM_RPB3); //assign OC1 to pin 3
   //set some initial duty cycle for the channels
   //PWMOperate_SetPulseWidthOnChannel(InitialPulseWidth_us*ticks_per_us,OCchannel_4_thruster); 
-  PWMOperate_SetDutyOnChannel(50, OCchannel_4_thruster); //set duty cycle to 8%
+  PWMOperate_SetDutyOnChannel(50, 1); //set duty cycle to 8%
   /********************************************
    in here you write your initialization code
    *******************************************/
@@ -95,7 +95,7 @@ bool InitTemplateService(uint8_t Priority)
 
 /****************************************************************************
  Function
-     PostTemplateService
+     PostThrusterService
 
  Parameters
      EF_Event_t ThisEvent ,the event to post to the queue
@@ -110,14 +110,14 @@ bool InitTemplateService(uint8_t Priority)
  Author
      J. Edward Carryer, 10/23/11, 19:25
 ****************************************************************************/
-bool PostTemplateService(ES_Event_t ThisEvent)
+bool PostThrusterService(ES_Event_t ThisEvent)
 {
   return ES_PostToService(MyPriority, ThisEvent);
 }
 
 /****************************************************************************
  Function
-    RunTemplateService
+    RunThrusterService
 
  Parameters
    ES_Event_t : the event to process
@@ -132,7 +132,7 @@ bool PostTemplateService(ES_Event_t ThisEvent)
  Author
    J. Edward Carryer, 01/15/12, 15:23
 ****************************************************************************/
-ES_Event_t RunTemplateService(ES_Event_t ThisEvent)
+ES_Event_t RunThrusterService(ES_Event_t ThisEvent)
 {
   ES_Event_t ReturnEvent;
   ReturnEvent.EventType = ES_NO_EVENT; // assume no errors
