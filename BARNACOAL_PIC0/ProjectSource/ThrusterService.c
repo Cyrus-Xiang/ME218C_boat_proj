@@ -64,11 +64,11 @@ static uint8_t MyPriority;
 bool InitThrusterService(uint8_t Priority)
 {
   ES_Event_t ThisEvent;
-
+  DB_printf("start initializing thruster service\n");
   MyPriority = Priority;
   //configure the pins
-  ANSELBbits.ANSB3 = 0; //set pin 3 to digital
-  TRISBbits.TRISB3 = 0; //set pin 3 to output
+  // ANSELBbits.ANSB3 = 0; //set pin 3 to digital
+  // TRISBbits.TRISB3 = 0; //set pin 3 to output
   //Initialize the PWM module
   PWMSetup_BasicConfig(1);
   PWMSetup_AssignChannelToTimer(1, _Timer2_); //assign OC1 to Timer2
@@ -77,7 +77,8 @@ bool InitThrusterService(uint8_t Priority)
   PWMSetup_MapChannelToOutputPin(1, PWM_RPB3); //assign OC1 to pin 3
   //set some initial duty cycle for the channels
   //PWMOperate_SetPulseWidthOnChannel(InitialPulseWidth_us*ticks_per_us,OCchannel_4_thruster); 
-  PWMOperate_SetDutyOnChannel(50, 1); //set duty cycle to 8%
+  PWMOperate_SetDutyOnChannel(50, 1); 
+  DB_printf("PWM setup done\n");
   /********************************************
    in here you write your initialization code
    *******************************************/
