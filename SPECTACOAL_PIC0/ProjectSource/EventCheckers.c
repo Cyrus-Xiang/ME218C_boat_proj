@@ -39,7 +39,7 @@
 // include our own prototypes to insure consistency between header &
 // actual functionsdefinition
 #include "EventCheckers.h"
-
+#include "dbprintf.h"
 // This is the event checking function sample. It is not intended to be
 // included in the module. It is only here as a sample to guide you in writing
 // your own event checkers
@@ -119,3 +119,35 @@ bool Check4Keystroke(void)
   return false;
 }
 
+bool Check4Buttons(){
+  static A4_button_state_last = 0;
+  static A4_button_state_curr = 0;
+  static B4_button_state_last = 0;
+  static B4_button_state_curr = 0;
+  static B9_button_state_last = 0;
+  static B9_button_state_curr = 0;
+
+  if (PORTAbits.RA4 != A4_button_state_last && PORTAbits.RA4 == 1){
+    DB_printf("pair Button Pressed\n");
+    ES_Event_t ThisEvent;
+    ThisEvent.EventType = ES_PAIR_BUTTON_PRESSED;
+    PostcontrollerFSM(ThisEvent);
+    return true;
+  }
+  lastA4_button_state = PORTAbits.RA4;
+  // if (PORTBbits.RB4 == 1){
+  //   DB_printf("drop coal button pressed\n");
+  //   ES_Event_t ThisEvent;
+  //   ThisEvent.EventType = ES_DROP_COAL_BUTTON_PRESSED;
+  //   PostcontrollerFSM(ThisEvent);
+  //   return true;
+  // }
+  // if (PORTBbits.RB9 == 1){
+  //   DB_printf("drop anchor  button pressed\n");
+  //   ES_Event_t ThisEvent;
+  //   ThisEvent.EventType = ES_DROP_ANCHOR_BUTTON_PRESSED;
+  //   PostcontrollerFSM(ThisEvent);
+  //   return true;
+  // }
+  return false;
+}

@@ -35,8 +35,8 @@
 /* prototypes for private functions for this machine.They should be functions
    relevant to the behavior of this state machine
 */
-static config_joystick_ADC(void);
-static config_buttons(void);
+static void config_joystick_ADC(void);
+static void config_buttons(void);
 /*---------------------------- Module Variables ---------------------------*/
 // everybody needs a state variable, you may need others as well.
 // type of state variable should match htat of enum in header file
@@ -185,7 +185,7 @@ controllerState_t QuerycontrollerFSM(void)
  private functions
  ***************************************************************************/
 
-static config_joystick_ADC(void)
+static void config_joystick_ADC(void)
 {
   TRISBbits.TRISB12 = 1;
   ANSELBbits.ANSB12 = 1; 
@@ -197,7 +197,7 @@ static config_joystick_ADC(void)
   return;
 }
 
-static config_buttons(void)
+static void config_buttons(void)
 {
   TRISAbits.TRISA4 = 1; // A4 is the pairing button
   TRISBbits.TRISB4 = 1; // B4 is the drop coal button

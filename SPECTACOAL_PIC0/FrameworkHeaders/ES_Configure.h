@@ -265,6 +265,7 @@ typedef enum
   //Events for communication service
   //Events for controllerFSM
   ES_PAIR_BUTTON_RELEASED,
+  ES_PAIR_BUTTON_PRESSED,
   ES_DROP_COAL_BUTTON_PRESSED,
   ES_DROP_ANCHOR_BUTTON_PRESSED,
   ES_IMU_ORIENTATION_SWITCH,
@@ -302,7 +303,7 @@ typedef enum
 
 /****************************************************************************/
 // This is the list of event checking functions
-#define EVENT_CHECK_LIST Check4Keystroke
+#define EVENT_CHECK_LIST Check4Keystroke, Check4Buttons
 
 /****************************************************************************/
 // These are the definitions for the post functions to be executed when the
