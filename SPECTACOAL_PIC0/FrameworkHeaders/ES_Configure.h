@@ -57,7 +57,7 @@
 // These are the definitions for Service 1
 #if NUM_SERVICES > 1
 // the header file with the public function prototypes
-#define SERV_1_HEADER "ControllerFSM.h"
+#define SERV_1_HEADER "controllerFSM.h"
 // the name of the Init function
 #define SERV_1_INIT InitcontrollerFSM
 // the name of the run function
@@ -305,7 +305,7 @@ typedef enum
 // Unlike services, any combination of timers may be used and there is no
 // priority in servicing them
 #define TIMER_UNUSED ((pPostFunc)0)
-#define TIMER0_RESP_FUNC TIMER_UNUSED
+#define TIMER0_RESP_FUNC PostcontrollerFSM
 #define TIMER1_RESP_FUNC TIMER_UNUSED
 #define TIMER2_RESP_FUNC TIMER_UNUSED
 #define TIMER3_RESP_FUNC TIMER_UNUSED
@@ -329,6 +329,7 @@ typedef enum
 // the timer number matches where the timer event will be routed
 // These symbolic names should be changed to be relevant to your application
 
+#define JoystickScan_TIMER 0
 #define SERVICE0_TIMER 15
 
 

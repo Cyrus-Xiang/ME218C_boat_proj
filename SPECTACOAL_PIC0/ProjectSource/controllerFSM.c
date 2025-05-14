@@ -26,7 +26,9 @@
 #include "ES_Configure.h"
 #include "ES_Framework.h"
 #include "controllerFSM.h"
-
+#include "PIC32_AD_Lib.h"
+#include "dbprintf.h"
+#include <xc.h>
 /*----------------------------- Module Defines ----------------------------*/
 
 /*---------------------------- Module Functions ---------------------------*/
@@ -40,8 +42,10 @@
 static controllerState_t CurrentState;
 
 // with the introduction of Gen2, we need a module level Priority var as well
+#define ADC_scan_interval 100
 static uint8_t MyPriority;
-
+static uint32_t Curr_AD_Val[2];
+//static uint32_t Last_AD_Val[] ={0,0};
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -67,7 +71,15 @@ bool InitcontrollerFSM(uint8_t Priority)
 
   MyPriority = Priority;
   // put us into the Initial PseudoState
-  CurrentState = InitPState;
+  CurrentState = Idle_s;
+  // configure pins and ADC for X Y information of joysticks
+  TRISBbits.TRISB12 = 1;
+  ANSELBbits.ANSB12 = 1; 
+  TRISBbits.TRISB13 = 1;
+  ANSELBbits.ANSB13 = 1;
+  ADC_ConfigAutoScan(BIT11HI|BIT12HI);//AN11 is for B13. X pos of joystick; AN12 is for B12, Y pos of joystick
+  ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval);
+  DB_printf("controllerFSM successfully initialized\n");
   // post the initial transition event
   ThisEvent.EventType = ES_INIT;
   if (ES_PostToService(MyPriority, ThisEvent) == true)
@@ -123,38 +135,24 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
 {
   ES_Event_t ReturnEvent;
   ReturnEvent.EventType = ES_NO_EVENT; // assume no errors
-
+  if (ThisEvent.EventType == ES_TIMEOUT && ThisEvent.EventParam == JoystickScan_TIMER)
+  {
+    // read the joystick values
+    ADC_MultiRead(Curr_AD_Val);
+    DB_printf("X: %d Y: %d\n", Curr_AD_Val[0], Curr_AD_Val[1]);
+    ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval);
+  }
   switch (CurrentState)
   {
-    case InitPState:        // If current state is initial Psedudo State
+    case Idle_s:        // If current state is initial Psedudo State
     {
-      if (ThisEvent.EventType == ES_INIT)    // only respond to ES_Init
-      {
-        // this is where you would put any actions associated with the
-        // transition from the initial pseudo-state into the actual
-        // initial state
-
-        // now put the machine into the actual initial state
-        CurrentState = UnlockWaiting;
-      }
+      
     }
     break;
 
-    case UnlockWaiting:        // If current state is state one
+    case Pairing_s:        // If current state is state one
     {
-      switch (ThisEvent.EventType)
-      {
-        case ES_LOCK:  //If event is event one
-
-        {   // Execute action function for state one : event one
-          CurrentState = Locked;  //Decide what the next state will be
-        }
-        break;
-
-        // repeat cases as required for relevant events
-        default:
-          ;
-      }  // end switch on CurrentEvent
+      
     }
     break;
     // repeat state pattern as required for other states

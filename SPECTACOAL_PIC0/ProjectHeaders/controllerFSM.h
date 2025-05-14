@@ -16,8 +16,7 @@
 // State definitions for use with the query function
 typedef enum
 {
-  InitPState, UnlockWaiting, _1UnlockPress,
-  _2UnlockPresses, Locked
+  Idle_s, Pairing_s, DriveMode_s, ChargeMode_s
 }controllerState_t;
 
 // Public Function Prototypes
