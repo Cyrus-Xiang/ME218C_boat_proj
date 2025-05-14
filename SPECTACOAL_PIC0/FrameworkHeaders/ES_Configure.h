@@ -261,7 +261,13 @@ typedef enum
   /* User-defined events start here */
   ES_NEW_KEY,               /* signals a new key received from terminal */
   ES_LOCK,
-  ES_UNLOCK
+  ES_UNLOCK,
+  //Events for communication service
+  //Events for controllerFSM
+  ES_PAIR_BUTTON_RELEASED,
+  ES_DROP_COAL_BUTTON_PRESSED,
+  ES_DROP_ANCHOR_BUTTON_PRESSED,
+  ES_IMU_ORIENTATION_SWITCH,
 }ES_EventType_t;
 
 /****************************************************************************/

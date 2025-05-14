@@ -35,7 +35,8 @@
 /* prototypes for private functions for this machine.They should be functions
    relevant to the behavior of this state machine
 */
-
+static config_joystick_ADC(void);
+static config_buttons(void);
 /*---------------------------- Module Variables ---------------------------*/
 // everybody needs a state variable, you may need others as well.
 // type of state variable should match htat of enum in header file
@@ -73,12 +74,8 @@ bool InitcontrollerFSM(uint8_t Priority)
   // put us into the Initial PseudoState
   CurrentState = Idle_s;
   // configure pins and ADC for X Y information of joysticks
-  TRISBbits.TRISB12 = 1;
-  ANSELBbits.ANSB12 = 1; 
-  TRISBbits.TRISB13 = 1;
-  ANSELBbits.ANSB13 = 1;
-  ADC_ConfigAutoScan(BIT11HI|BIT12HI);//AN11 is for B13. X pos of joystick; AN12 is for B12, Y pos of joystick
-  ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval);
+  config_joystick_ADC();
+  config_buttons();
   DB_printf("controllerFSM successfully initialized\n");
   // post the initial transition event
   ThisEvent.EventType = ES_INIT;
@@ -188,3 +185,22 @@ controllerState_t QuerycontrollerFSM(void)
  private functions
  ***************************************************************************/
 
+static config_joystick_ADC(void)
+{
+  TRISBbits.TRISB12 = 1;
+  ANSELBbits.ANSB12 = 1; 
+  TRISBbits.TRISB13 = 1;
+  ANSELBbits.ANSB13 = 1;
+  ADC_ConfigAutoScan(BIT11HI|BIT12HI);//AN11 is for B13. X pos of joystick; AN12 is for B12, Y pos of joystick
+  ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval);
+  
+  return;
+}
+
+static config_buttons(void)
+{
+  TRISAbits.TRISA4 = 1; // A4 is the pairing button
+  TRISBbits.TRISB4 = 1; // B4 is the drop coal button
+  TRISBbits.TRISB9 = 1; // B9 is the drop anchor button
+  return;
+}
