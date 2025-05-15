@@ -1,6 +1,6 @@
 /****************************************************************************
  Module
-   DrivetrainService.c
+   PowerService.c
 
  Revision
    1.0.1
@@ -23,9 +23,8 @@
 /* include header files for this state machine as well as any machines at the
    next lower level in the hierarchy that are sub-machines to this machine
 */
-
 //This Module
-#include "DrivetrainService.h"
+#include "PowerService.h"
 
 //Hardware
 #include <xc.h>
@@ -34,23 +33,14 @@
 #include "ES_Configure.h"
 #include "ES_Framework.h"
 #include "dbprintf.h"
-#include "ADService.h"
-#include <sys/attribs.h>
 
 /*----------------------------- Module Defines ----------------------------*/
-#define FREQUENCY_PBCLK 20000000 //20MHz
-#define FREQUENCY_DESIRED 480 // 2873HZ don't know why, but should be the same as lab 7
-#define PRESCALAR 0b010 // 1:4 
-#define PERIOD_DESIRED FREQUENCY_PBCLK/FREQUENCY_DESIRED/(4)
-#define PERIOD_COUNT PERIOD_DESIRED-1
-
-#define PWM_MIN 50
-#define PWM_OFF 75
-#define PWM_MAX 100
-
 #define ONE_SEC 1000
 #define HALF_SEC ONE_SEC/2
 
+#define RECHARGE_PERIOD ONE_SEC
+#define FULL_POWER 30
+#define NO_POWER 0
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this machine.They should be functions
    relevant to the behavior of this state machine
@@ -59,23 +49,18 @@
 /*---------------------------- Module Variables ---------------------------*/
 // everybody needs a state variable, you may need others as well.
 // type of state variable should match htat of enum in header file
-static DrivetrainState_t CurrentState;
+static PowerState_t CurrentState = Idle;
 
 // with the introduction of Gen2, we need a module level Priority var as well
 static uint8_t MyPriority;
 
-// parameter for control
-static uint8_t Velocity = 0;
-static uint8_t Omega = 0;
-static uint8_t DriveSpeed;
-static uint8_t TurnSpeed;
-static uint32_t PR = PERIOD_COUNT;
-
+// module variable 
+static uint8_t Power = NO_POWER;
 
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
-     InitDrivetrainService
+     InitTemplateFSM
 
  Parameters
      uint8_t : the priorty of this service
@@ -91,53 +76,14 @@ static uint32_t PR = PERIOD_COUNT;
  Author
      J. Edward Carryer, 10/23/11, 18:55
 ****************************************************************************/
-bool InitDrivetrainService(uint8_t Priority)
+bool InitPowerService(uint8_t Priority)
 {
   ES_Event_t ThisEvent;
 
   MyPriority = Priority;
-  DB_printf("\rStart init Drivetrain Service\n");
 
-  //Configure pins
-  ANSELAbits.ANSA0 = 0; //disable analog on RA0, RA1 for digital output
-  ANSELAbits.ANSA1 = 0;
-  TRISAbits.TRISA0 = 0; //set RA0, RA1 as output for motor control
-  TRISAbits.TRISA1 = 0;
-  RPA0R = 0b0101; //map RA0, RA1 to output compare mode 
-  RPA1R = 0b0101; 
-  TRISAbits.TRISA4 = 1; //set RA4 as the digital input for direction switch
-
-  //Configure Timer2
-  T2CONbits.ON = 0; //disable time2 during setup
-  T2CONbits.TCS = 0; //clear TCS to select internal PB clock source
-  T2CONbits.TGATE = 0; //disable gated time accumulation
-  T2CONbits.TCKPS = PRESCALAR; //prescalar 1:4
-  TMR2 = 0; //clear timer register
-  PR2 = PERIOD_COUNT; //Set period based on the desired 200Hz frequency
-  IFS0CLR = _IFS0_T2IF_MASK; //clear interrupt flag
-  IEC0CLR = _IEC0_T2IE_MASK; //disable interrupt on TMR2
-
-  //Configure output compare module
-  OC1CONbits.ON = 0; //disable OC1, OC2 for configuration
-  OC2CONbits.ON = 0;
-  OC1CONbits.OC32 = 0; //set OC1, OC2 for comparison to 16bit timer source
-  OC2CONbits.OC32 = 0; 
-  OC1CONbits.OCTSEL = 0; //set OC1, OC2 that Timer2 is the source for OC
-  OC2CONbits.OCTSEL = 0; 
-  OC1CONbits.OCM = 0b110; //set PWM mode on OC1, OC2 and disable fault pin
-  OC2CONbits.OCM = 0b110;
-
-  //Finish configuration, enable Timer and Output Compare Module
-  T2CONbits.ON = 1; //enable Timer2
-  OC1CONbits.ON = 1; //enable OC1, OC2
-  OC2CONbits.ON = 1;
-
-  //Initialize PWM with zero rotation
-  OC1R = PR;
-  OC2R = PR;
-  OC1RS = PR;
-  OC2RS = PR;
-  
+  DB_printf("\rStart init Power Service\n");
+  // put us into the Initial PseudoState
   CurrentState = InitPState;
   // post the initial transition event
   ThisEvent.EventType = ES_INIT;
@@ -153,7 +99,7 @@ bool InitDrivetrainService(uint8_t Priority)
 
 /****************************************************************************
  Function
-     PostDrivetrainService
+     PostTemplateFSM
 
  Parameters
      EF_Event_t ThisEvent , the event to post to the queue
@@ -168,14 +114,14 @@ bool InitDrivetrainService(uint8_t Priority)
  Author
      J. Edward Carryer, 10/23/11, 19:25
 ****************************************************************************/
-bool PostDrivetrainService(ES_Event_t ThisEvent)
+bool PostPowerService(ES_Event_t ThisEvent)
 {
   return ES_PostToService(MyPriority, ThisEvent);
 }
 
 /****************************************************************************
  Function
-    RunDrivetrainService
+    RunTemplateFSM
 
  Parameters
    ES_Event_t : the event to process
@@ -190,85 +136,59 @@ bool PostDrivetrainService(ES_Event_t ThisEvent)
  Author
    J. Edward Carryer, 01/15/12, 15:23
 ****************************************************************************/
-ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
+ES_Event_t RunPowerService(ES_Event_t ThisEvent)
 {
   ES_Event_t ReturnEvent;
   ReturnEvent.EventType = ES_NO_EVENT; // assume no errors
 
   switch (CurrentState)
   {
-    case InitPState:       
+    case InitPState:        // If current state is initial Psedudo State
     {
       if (ThisEvent.EventType == ES_INIT)    // only respond to ES_Init
       {
-        CurrentState = Driving;
-        // CurrentState = Pairing;
+        CurrentState = Pairing;
       }
     }
     break;
-    case Pairing:
+    case Pairing:       
     {
-      if(ThisEvent.EventType == ES_PAIRED)
+      if (ThisEvent.EventType == ES_PAIRED)    
       {
-        CurrentState = Idle;
-        PairingStateIndicator();
+        Power = FULL_POWER;
+        CurrentState = Power_On;
       }
     }
     break;
 
     case Idle:
     {
-      switch (ThisEvent.EventType)
+      if (ThisEvent.EventType == ES_COMMAND)
       {
-        case ES_COMMAND:
-        {
-          CurrentState = Driving;
-        }
-        break;
-
-        case ES_UNPAIRED:
-        {
-          CurrentState = Pairing;
-        }
-        break;
-
-        default:
-          break;
+        ES_Timer_InitTimer(DECHARGE_TIMER, DECHARGE_TIME);
+        ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
+        CurrentState =  Power_On
       }
     }
     break;
 
-    case Driving:        // If current state is driving State
+    case Power_On:       
     {
-      
       switch (ThisEvent.EventType)
       {
-        case ES_COMMAND:
-        {
-          PWMUpdate(Velocity, Omega);
+        case ES_CHARGE:  
+        {  
+          ES_Timer_InitTimer(RECHARGE_TIMER, RECHARGE_TIME);
+          CurrentState = Recharging;
         }
         break;
 
-        case ES_NOPWR:
-        {
-          PWMUpdate(0, 0);
-          CurrentState = Idle;
-        }
-        break;
-
-        case ES_UNPAIRED:
-        {
-          PWMUpdate(0, 0);
-          CurrentState = Pairing;
-        }
-        break;
-
-        case ES_TIMEOUT:
-        {
-          if(ThisEvent.EventParam == AD_TIMER)
+        case ES_TIMEOUT:  
+        {  
+          if (ThisEvent.EventParam == DECHARGE_TIMER)
           {
-            PWMUpdate(Velocity, Omega);
-            DB_printf("\rPWM update\n");
+            ES_Timer_InitTimer(DECHARGE_TIMER, DECHARGE_TIME);
+            Power -= 1;
           }
         }
         break;
@@ -276,30 +196,35 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
         default:
           break;
       }
-   
     }
     break;
 
+    case UnlockWaiting:        // If current state is state one
+    {
+      switch (ThisEvent.EventType)
+      {
+        case ES_LOCK:  //If event is event one
+
+        {   // Execute action function for state one : event one
+          CurrentState = Locked;  //Decide what the next state will be
+        }
+        break;
+
+        // repeat cases as required for relevant events
+        default:
+          ;
+      }  // end switch on CurrentEvent
+    }
+    break;
+    // repeat state pattern as required for other states
     default:
       break;
   }                                   // end switch on Current State
   return ReturnEvent;
 }
 
+
 /***************************************************************************
  private functions
  ***************************************************************************/
 
-void PWMUpdate(uint8_t Velocity, uint8_t Omega)
-{
-  uint8_t ADControl = GetScaledPotentialValue();
-  uint8_t PWM_Left = PWM_MIN + (PWM_MAX - PWM_MIN) * ADControl/100;
-  uint8_t PWM_Right = PWM_MIN + (PWM_MAX - PWM_MIN) * ADControl/100;
-  OC1RS = PR * PWM_Left/100;
-  OC2RS = PR * PWM_Right/100;
-}
-
-void PairingStateIndicator()
-{
-  
-}

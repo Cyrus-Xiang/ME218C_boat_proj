@@ -34,22 +34,14 @@
 #include "ES_Configure.h"
 #include "ES_Framework.h"
 #include "dbprintf.h"
-#include "ADService.h"
 #include <sys/attribs.h>
 
 /*----------------------------- Module Defines ----------------------------*/
 #define FREQUENCY_PBCLK 20000000 //20MHz
-#define FREQUENCY_DESIRED 480 // 2873HZ don't know why, but should be the same as lab 7
+#define FREQUENCY_DESIRED 400 // 200HZ
 #define PRESCALAR 0b010 // 1:4 
 #define PERIOD_DESIRED FREQUENCY_PBCLK/FREQUENCY_DESIRED/(4)
 #define PERIOD_COUNT PERIOD_DESIRED-1
-
-#define PWM_MIN 50
-#define PWM_OFF 75
-#define PWM_MAX 100
-
-#define ONE_SEC 1000
-#define HALF_SEC ONE_SEC/2
 
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this machine.They should be functions
@@ -65,8 +57,8 @@ static DrivetrainState_t CurrentState;
 static uint8_t MyPriority;
 
 // parameter for control
-static uint8_t Velocity = 0;
-static uint8_t Omega = 0;
+static uint32_t RightMotorSpeed = PERIOD_COUNT;
+static uint32_t LeftMotorSpeed = PERIOD_COUNT;
 static uint8_t DriveSpeed;
 static uint8_t TurnSpeed;
 static uint32_t PR = PERIOD_COUNT;
@@ -91,7 +83,7 @@ static uint32_t PR = PERIOD_COUNT;
  Author
      J. Edward Carryer, 10/23/11, 18:55
 ****************************************************************************/
-bool InitDrivetrainService(uint8_t Priority)
+bool InitTemplateFSM(uint8_t Priority)
 {
   ES_Event_t ThisEvent;
 
@@ -115,7 +107,6 @@ bool InitDrivetrainService(uint8_t Priority)
   TMR2 = 0; //clear timer register
   PR2 = PERIOD_COUNT; //Set period based on the desired 200Hz frequency
   IFS0CLR = _IFS0_T2IF_MASK; //clear interrupt flag
-  IEC0CLR = _IEC0_T2IE_MASK; //disable interrupt on TMR2
 
   //Configure output compare module
   OC1CONbits.ON = 0; //disable OC1, OC2 for configuration
@@ -132,13 +123,15 @@ bool InitDrivetrainService(uint8_t Priority)
   OC1CONbits.ON = 1; //enable OC1, OC2
   OC2CONbits.ON = 1;
 
-  //Initialize PWM with zero rotation
-  OC1R = PR;
-  OC2R = PR;
-  OC1RS = PR;
-  OC2RS = PR;
-  
-  CurrentState = InitPState;
+  //Initialize PWM with zero duty cycle
+  OC1R = LeftMotorSpeed;
+  OC2R = RightMotorSpeed;
+  OC1RS = LeftMotorSpeed;
+  OC2RS = RightMotorSpeed;
+  OC1RS = LeftMotorSpeed*6/10;
+
+  CurrentState = Driving;
+
   // post the initial transition event
   ThisEvent.EventType = ES_INIT;
   if (ES_PostToService(MyPriority, ThisEvent) == true)
@@ -197,109 +190,80 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
 
   switch (CurrentState)
   {
-    case InitPState:       
-    {
-      if (ThisEvent.EventType == ES_INIT)    // only respond to ES_Init
-      {
-        CurrentState = Driving;
-        // CurrentState = Pairing;
-      }
-    }
-    break;
-    case Pairing:
-    {
-      if(ThisEvent.EventType == ES_PAIRED)
-      {
-        CurrentState = Idle;
-        PairingStateIndicator();
-      }
-    }
-    break;
-
-    case Idle:
-    {
-      switch (ThisEvent.EventType)
-      {
-        case ES_COMMAND:
-        {
-          CurrentState = Driving;
-        }
-        break;
-
-        case ES_UNPAIRED:
-        {
-          CurrentState = Pairing;
-        }
-        break;
-
-        default:
-          break;
-      }
-    }
-    break;
-
     case Driving:        // If current state is driving State
     {
-      
       switch (ThisEvent.EventType)
       {
-        case ES_COMMAND:
+        case SPEED_UPDATE:
         {
-          PWMUpdate(Velocity, Omega);
+          DriveSpeed = ThisEvent.EventParam;
+          ES_Event_t Event2Post;
+          PostDrivetrainService(Event2Post);
         }
         break;
 
-        case ES_NOPWR:
+        case TURN_UPDATE:
         {
-          PWMUpdate(0, 0);
-          CurrentState = Idle;
+          TurnSpeed = ThisEvent.EventParam;
+          ES_Event_t Event2Post;
         }
-        break;
-
-        case ES_UNPAIRED:
-        {
-          PWMUpdate(0, 0);
-          CurrentState = Pairing;
-        }
-        break;
-
-        case ES_TIMEOUT:
-        {
-          if(ThisEvent.EventParam == AD_TIMER)
-          {
-            PWMUpdate(Velocity, Omega);
-            DB_printf("\rPWM update\n");
-          }
-        }
-        break;
-
-        default:
-          break;
       }
+      break;
    
     }
     break;
 
+    case Recharging:        // If current state is state one
+    {
+      switch (ThisEvent.EventType)
+      {
+        case ES_LOCK:  //If event is event one
+
+        {   // Execute action function for state one : event one
+        }
+        break;
+
+        // repeat cases as required for relevant events
+        default:
+          ;
+      }  // end switch on CurrentEvent
+    }
+    break;
+    // repeat state pattern as required for other states
     default:
       break;
   }                                   // end switch on Current State
   return ReturnEvent;
 }
 
+/****************************************************************************
+ Function
+     QueryTemplateSM
+
+ Parameters
+     None
+
+ Returns
+     TemplateState_t The current state of the Template state machine
+
+ Description
+     returns the current state of the Template state machine
+ Notes
+
+ Author
+     J. Edward Carryer, 10/23/11, 19:21
+****************************************************************************/
+// TemplateState_t QueryTemplateFSM(void)
+// {
+//   return CurrentState;
+// }
+
 /***************************************************************************
  private functions
  ***************************************************************************/
 
-void PWMUpdate(uint8_t Velocity, uint8_t Omega)
+void PWMUpdate(void)
 {
-  uint8_t ADControl = GetScaledPotentialValue();
-  uint8_t PWM_Left = PWM_MIN + (PWM_MAX - PWM_MIN) * ADControl/100;
-  uint8_t PWM_Right = PWM_MIN + (PWM_MAX - PWM_MIN) * ADControl/100;
-  OC1RS = PR * PWM_Left/100;
-  OC2RS = PR * PWM_Right/100;
-}
 
-void PairingStateIndicator()
-{
-  
+  //PWM_SetDuty(PWM_GetDuty() + 1);
 }
