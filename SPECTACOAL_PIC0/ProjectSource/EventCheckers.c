@@ -120,21 +120,35 @@ bool Check4Keystroke(void)
 }
 
 bool Check4Buttons(){
-  static A4_button_state_last = 0;
-  static A4_button_state_curr = 0;
-  static B4_button_state_last = 0;
-  static B4_button_state_curr = 0;
-  static B9_button_state_last = 0;
-  static B9_button_state_curr = 0;
-
-  if (PORTAbits.RA4 != A4_button_state_last && PORTAbits.RA4 == 1){
-    DB_printf("pair Button Pressed\n");
-    ES_Event_t ThisEvent;
-    ThisEvent.EventType = ES_PAIR_BUTTON_PRESSED;
-    PostcontrollerFSM(ThisEvent);
-    return true;
+  #define debounce_time 100
+  bool toReturn = false;
+  size_t numOfButtons = 3;
+  static bool button_states_last[numOfButtons] = {0,0,0}; // A4, B4, B9
+  static bool button_states_curr[numOfButtons] = {0,0,0}; 
+  static uint16_t last_button_switch_time[numOfButtons] = {0,0,0}; 
+  static uint16_t time_now = 0;
+  volatile uint8_t *port_bit[numOfButtons] = {&PORTA, &PORTB, &PORTB};
+  //read the buttons
+  for (int i = 0; i < numOfButtons; i++){
+    button_states_curr[i] = (PORTA & (1 << i)) >> i;
   }
-  lastA4_button_state = PORTAbits.RA4;
+  A4_button_state_curr = PORTAbits.RA4;
+  B4_button_state_curr = PORTBbits.RB4;
+  B9_button_state_curr = PORTBbits.RB9;
+  if (A4_button_state_curr != A4_button_state_last && A4_button_state_curr == 1){
+    time_now = ES_Timer_GetTime();
+    DB_printf("pair Button Pressed\n");
+    if (time_now - lastA4_down_time > debounce_time){
+      DB_printf("pair Button event sent\n");
+      ES_Event_t ThisEvent;
+      ThisEvent.EventType = ES_PAIR_BUTTON_PRESSED;
+      PostcontrollerFSM(ThisEvent);
+      toReturn = true;
+      
+    }
+    lastA4_down_time = time_now; 
+  }
+  A4_button_state_last = A4_button_state_curr;
   // if (PORTBbits.RB4 == 1){
   //   DB_printf("drop coal button pressed\n");
   //   ES_Event_t ThisEvent;
@@ -149,5 +163,5 @@ bool Check4Buttons(){
   //   PostcontrollerFSM(ThisEvent);
   //   return true;
   // }
-  return false;
+  return toReturn;
 }
