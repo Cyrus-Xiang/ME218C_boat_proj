@@ -40,6 +40,7 @@
 // actual functionsdefinition
 #include "EventCheckers.h"
 #include "dbprintf.h"
+#include <string.h>
 // This is the event checking function sample. It is not intended to be
 // included in the module. It is only here as a sample to guide you in writing
 // your own event checkers
@@ -108,60 +109,49 @@ bool Check4Lock(void)
 ****************************************************************************/
 bool Check4Keystroke(void)
 {
-  if (IsNewKeyReady())   // new key waiting?
+  if (IsNewKeyReady()) // new key waiting?
   {
     ES_Event_t ThisEvent;
-    ThisEvent.EventType   = ES_NEW_KEY;
-    ThisEvent.EventParam  = GetNewKey();
+    ThisEvent.EventType = ES_NEW_KEY;
+    ThisEvent.EventParam = GetNewKey();
     ES_PostAll(ThisEvent);
     return true;
   }
   return false;
 }
 
-bool Check4Buttons(){
+bool Check4Buttons()
+{
   #define debounce_time 100
+  #define numOfButtons 3
   bool toReturn = false;
-  size_t numOfButtons = 3;
-  static bool button_states_last[numOfButtons] = {0,0,0}; // A4, B4, B9
-  static bool button_states_curr[numOfButtons] = {0,0,0}; 
-  static uint16_t last_button_switch_time[numOfButtons] = {0,0,0}; 
+  volatile uint32_t *port_bit[numOfButtons] = {&PORTA, &PORTB, &PORTB}; // A4, B4, B9
+  static uint32_t PortMasks[numOfButtons] = {1L << 4, 1L << 4, 1L << 9};
+  static bool button_states_last[numOfButtons] = {0};
+  static bool button_states_curr[numOfButtons] = {0};
+  static uint16_t last_button_switch_time[numOfButtons] = {0}; // ES_Timer_GetTime() returns uint16_t
   static uint16_t time_now = 0;
-  volatile uint8_t *port_bit[numOfButtons] = {&PORTA, &PORTB, &PORTB};
-  //read the buttons
-  for (int i = 0; i < numOfButtons; i++){
-    button_states_curr[i] = (PORTA & (1 << i)) >> i;
-  }
-  A4_button_state_curr = PORTAbits.RA4;
-  B4_button_state_curr = PORTBbits.RB4;
-  B9_button_state_curr = PORTBbits.RB9;
-  if (A4_button_state_curr != A4_button_state_last && A4_button_state_curr == 1){
-    time_now = ES_Timer_GetTime();
-    DB_printf("pair Button Pressed\n");
-    if (time_now - lastA4_down_time > debounce_time){
-      DB_printf("pair Button event sent\n");
-      ES_Event_t ThisEvent;
-      ThisEvent.EventType = ES_PAIR_BUTTON_PRESSED;
-      PostcontrollerFSM(ThisEvent);
-      toReturn = true;
-      
+
+  // read the buttons and check ups and downs
+  for (int i = 0; i < numOfButtons; i++)
+  {
+    button_states_curr[i] = (*port_bit[i] & PortMasks[i]);
+    if (button_states_curr[i] != button_states_last[i] && button_states_curr[i])
+    {
+      time_now = ES_Timer_GetTime();
+      DB_printf("Button#%d Pressed\n",i);
+      if (time_now - last_button_switch_time[i] > debounce_time)
+      {
+        DB_printf("Button#%d press event sent\n",i);
+        ES_Event_t ThisEvent;
+        ThisEvent.EventType = ES_PAIR_BUTTON_PRESSED;
+        PostcontrollerFSM(ThisEvent);
+        toReturn = true;
+      }
+      last_button_switch_time[i] = time_now; // update the time
     }
-    lastA4_down_time = time_now; 
   }
-  A4_button_state_last = A4_button_state_curr;
-  // if (PORTBbits.RB4 == 1){
-  //   DB_printf("drop coal button pressed\n");
-  //   ES_Event_t ThisEvent;
-  //   ThisEvent.EventType = ES_DROP_COAL_BUTTON_PRESSED;
-  //   PostcontrollerFSM(ThisEvent);
-  //   return true;
-  // }
-  // if (PORTBbits.RB9 == 1){
-  //   DB_printf("drop anchor  button pressed\n");
-  //   ES_Event_t ThisEvent;
-  //   ThisEvent.EventType = ES_DROP_ANCHOR_BUTTON_PRESSED;
-  //   PostcontrollerFSM(ThisEvent);
-  //   return true;
-  // }
+
+  memcpy(button_states_last, button_states_curr, sizeof(button_states_last));
   return toReturn;
 }
