@@ -49,8 +49,8 @@
 #define PWM_OFF 75
 #define PWM_MAX 90
 
-#define SERVO_OPEN_POS 100
-#define SERVO_OPEN_POS 50
+#define SERVO_OPEN_POS 80
+#define SERVO_CLOSE_POS 30
 
 #define ONE_SEC 1000
 #define HALF_SEC ONE_SEC/2
@@ -79,6 +79,7 @@ static uint8_t ScaledLeft = 127;
 static uint8_t ScaledRight = 127;
 static uint8_t PWMLeft = 50;
 static uint8_t PWMRight = 50;
+static uint8_t Servo_POS = SERVO_CLOSE_POS;
 
 
 /*------------------------------ Module Code ------------------------------*/
@@ -300,6 +301,15 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
           {
             PWMUpdate(Velocity, Omega);
             DB_printf("\rPWM update\n");
+            Servo_POS = PORTAbits.RA4;
+            if(Servo_POS == 1)
+            {
+              OC3RS = PR*SERVO_OPEN_POS/100;
+            }
+            if(Servo_POS == 0)
+            {
+              OC3RS = PR*SERVO_CLOSE_POS/100;
+            }
           }
         }
         break;
