@@ -18,7 +18,7 @@
 // Public Function Prototypes
 typedef enum
 {
-  Idle, Receiving, Transmitting
+  InitPState, Receiving, Transmitting
 }UARTState_t;
 
 bool InitBoatComm(uint8_t Priority);
@@ -27,6 +27,7 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent);
 
 // Private Function Prototypes
 void SetupUART();
-void SendFrame(const uint8_t *frame, uint8_t len);
+//void SendFrame(const uint8_t *frame, uint8_t len);
+//void ProcessUARTByte(uint8_t byte)
 #endif /* ServTemplate_H */
 

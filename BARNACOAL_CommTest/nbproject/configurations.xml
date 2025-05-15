@@ -44,6 +44,7 @@
       <itemPath>ProjectHeaders/EventCheckWrapper.h</itemPath>
       <itemPath>ProjectHeaders/EventCheckers.h</itemPath>
       <itemPath>ProjectHeaders/TestHarnessService0.h</itemPath>
+      <itemPath>ProjectHeaders/BoatComm.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -55,6 +56,7 @@
       <itemPath>ProjectSource/EventCheckers.c</itemPath>
       <itemPath>ProjectSource/TestHarnessService0.c</itemPath>
       <itemPath>ProjectSource/main.c</itemPath>
+      <itemPath>ProjectSource/BoatComm.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"

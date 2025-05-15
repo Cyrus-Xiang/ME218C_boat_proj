@@ -29,6 +29,7 @@
 #include "ES_Port.h"
 #include "terminal.h"
 #include "dbprintf.h"
+#include <sys/attribs.h>
 
 /*----------------------------- Module Defines ----------------------------*/
 
@@ -43,18 +44,13 @@
 #define ONEFIFTH_SEC (ONE_SEC / 5)
 #define FRAME_LEN 13
 
-uint8_t txFrame[] = {
-  0x7E,          // Start delimiter
-  0x00, 0x08,    // Length (MSB, LSB) = 8 bytes of data after this field
-  0x01,          // Frame type = TX (16-bit address)
-  0x00,          // Frame ID (0 = no ACK)
-  0x21, 0x86,    // TEST: Destination address = 0x2186
-  0x01,          // Options = 0x01 to disable ACK
-  0xFF,          // TEST: return 0xFF when pairing
-  0x57           // Checksum (computed as 0xFF - sum of bytes after 0x7E)
-};
 static uint8_t MyPriority;
-static volatile uint8_t RxMSG = 0b00000000; // message from Rx
+static UARTState_t CurrentState;
+static volatile uint8_t rxByte = 0xFF; // default to 0xFF
+static uint8_t rxBuffer[FRAME_LEN];
+static uint8_t rxIndex = 0;
+static uint16_t expectedLength = 0;
+static bool receiving = false;
 
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
@@ -148,63 +144,21 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
    *******************************************/
   switch (CurrentState)
   {
-    case Waiting:        // If current state is initial Psedudo State
+    case InitPState:        // If current state is initial Psedudo State
     {
-      switch(ThisEvent.EventType)
+      if (ThisEvent.EventType == ES_INIT)    // only respond to ES_Init
       {
-        case SW1_UP:
-        {
-          SwitchState |= (1<<0); // set bit 0 for LED1 on
-          DB_printf("current switch = %d\r\n", SwitchState);
-        }
-        break;
-        case SW1_DOWN:
-        {
-          SwitchState &= ~(1<<0); // clear bit 0 for LED1 off
-          DB_printf("current switch = %d\r\n", SwitchState); 
-        }
-        break;
-        case SW2_UP:
-        {
-          SwitchState |= (1<<1); // set bit 0 for LED2 on
-          DB_printf("current switch = %d\r\n", SwitchState); 
-        }
-        break;
-        case SW2_DOWN:
-        {
-          SwitchState &= ~(1<<1); // clear bit 0 for LED2 off  
-          DB_printf("current switch = %d\r\n", SwitchState); 
-        }
-        break;
-        case SW3_UP:
-        {
-          SwitchState |= (1<<2); // set bit 0 for LED3 on   
-          DB_printf("current switch = %d\r\n", SwitchState);
-        }
-        break;
-        case SW3_DOWN:
-        {
-          SwitchState &= ~(1<<2); // clear bit 0 for LED3 off    
-          DB_printf("current switch = %d\r\n", SwitchState);
-        }
-        break;
-        case ES_TIMEOUT:
-        {
-          if (ThisEvent.EventParam == LED_TIMER)
-          {
-            REQUEST_LED = 0; // turn off request LED
-          }
-        }
-        break;
-        case RX_DONE:
-        {
-          CurrentState = Transmitting;
-        }
-        break;
+        // Do nothing
+        CurrentState = Receiving;
       }
     }
     break;
 
+    case Receiving: 
+
+    break;
+
+    /*
     case Transmitting:
     {
       DB_printf("enter Tx\r\n");
@@ -217,6 +171,7 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
       CurrentState = Waiting; // go to waiting state
     }
     break;
+    */
     // repeat state pattern as required for other states
     default:
       ;
@@ -280,24 +235,62 @@ void SetupUART() {
   U2MODEbits.ON = 1;
 }
 
+/*
 void SendFrame(const uint8_t *frame, uint8_t len) {
-    for (int i = 0; i < len; i++) {
-        while (!U2STAbits.TRMT); // Wait until Transmit Register is empty
-        U2TXREG = frame[i];
-    }
+  for (int i = 0; i < len; i++) {
+    while (!U2STAbits.TRMT); // Wait until Transmit Register is empty
+    U2TXREG = frame[i];
+  }
 }
-
+*/
 void __ISR(_UART_2_VECTOR, IPL7SOFT) U2RxISR(void)
 {
+  rxByte = U2RXREG; // Read U2RX register into Message
+  DB_printf("rxByte = %d\r\n", rxByte);
+  //ProcessUARTByte(rxByte); // Pass byte to byte-level decoder
   IFS1CLR = _IFS1_U2RXIF_MASK; // Clear Rx interrupt flag
-  RxMSG = U2RXREG; // Read U2RX register into Message
-  CurrentState = Transmitting;
-
-  ES_Event_t RxEvent;
-  RxEvent.EventType = RX_DONE;
-  RxEvent.EventParam = RxMSG;
-  PostUARTService(RxEvent);
 }
+
+/*
+void ProcessUARTByte(uint8_t byte) {
+  if (!receiving) {
+    if (byte == 0x7E) {  // Start delimiter
+      if (rxIndex == 0) {
+        rxBuffer[rxIndex] = byte;
+        rxIndex++;
+        receiving = true;
+      }
+      else {
+        DB_printf("Received 0x7E, but rxIndex not 0\r\n")
+      }
+      return;
+    }
+
+    // Store the byte and then increment
+    rxBuffer[rxIndex] = byte;
+    rxIndex++;
+
+    if (rxIndex == 3) {
+      // We've received the two length bytes (MSB, LSB)
+      uint8_t msb = rxBuffer[1];
+      uint8_t lsb = rxBuffer[2];
+      expectedLength = 4 + ((msb << 8) | lsb);  // Add start, length, checksum
+    }
+
+    if (expectedLength > 0 && rxIndex == expectedLength) {
+        receiving = false;
+        // ParseAPIFrame(rxBuffer, expectedLength);
+        rxIndex = 0;
+    }
+
+    if (rxIndex >= MAX_FRAME_SIZE) {
+        // Overflow or malformed frame, reset
+        receiving = false;
+        rxIndex = 0;
+    }
+  }
+}
+*/
 
 // TODO: Implement checkSum function? 
 /*------------------------------- Footnotes -------------------------------*/
