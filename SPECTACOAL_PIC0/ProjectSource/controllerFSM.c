@@ -37,16 +37,22 @@
 */
 static void config_joystick_ADC(void);
 static void config_buttons(void);
+static void adjust_7seg(size_t digit_input);
+static void enterDriveMode_s(void);
+static void exitDriveMode_s(void);
+static void enterChargeMode_s(void);
+static void exitChargeMode_s(void);
 /*---------------------------- Module Variables ---------------------------*/
 // everybody needs a state variable, you may need others as well.
 // type of state variable should match htat of enum in header file
 static controllerState_t CurrentState;
 
 // with the introduction of Gen2, we need a module level Priority var as well
-#define ADC_scan_interval 1000
+#define ADC_scan_interval 500
 static uint8_t MyPriority;
 static uint32_t Curr_AD_Val[2];
-//static uint32_t Last_AD_Val[] ={0,0};
+static size_t boat_selected = 1;
+static size_t max_boat_number = 6;
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -141,21 +147,55 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
   }
   switch (CurrentState)
   {
-    case Idle_s:        // If current state is initial Psedudo State
+  case Idle_s:
+  {
+    if (ThisEvent.EventType == ES_CHOOSE_BOAT_BUTTON_PRESSED)
     {
-      
+      if (boat_selected < max_boat_number)
+      {
+        boat_selected++;
+      }
+      else
+      {
+        boat_selected = 1;
+      }
+      adjust_7seg(boat_selected);
     }
-    break;
+    else if (ThisEvent.EventType == ES_PAIR_BUTTON_PRESSED)
+    {
+      // post event to pairing state machine
+      DB_printf("start pairing with boart number %d\n", boat_selected);
+      CurrentState = Pairing_s;
+    }
+  }
+  break;
 
-    case Pairing_s:        // If current state is state one
-    {
-      
+  case Pairing_s: // If current state is state one
+  {
+    if(ThisEvent.EventType == ES_BOAT_PAIRED){
+      CurrentState = DriveMode_s;
+      enterDriveMode_s();
+      DB_printf("Pairing successful, entering Drive Mode\n");
     }
-    break;
-    // repeat state pattern as required for other states
-    default:
-      ;
-  }                                   // end switch on Current State
+  }
+  break;
+  case DriveMode_s:
+  {
+   if (ThisEvent.EventType == ES_DROP_COAL_BUTTON_PRESSED)
+    {
+      DB_printf("Drop coal event received\n");
+    }
+  }
+  break;
+  case ChargeMode_s:
+  {
+    
+  }
+  break;
+  default:{
+  }
+  break;
+  } // end switch on Current State
   return ReturnEvent;
 }
 
@@ -188,19 +228,39 @@ controllerState_t QuerycontrollerFSM(void)
 static void config_joystick_ADC(void)
 {
   TRISBbits.TRISB12 = 1;
-  ANSELBbits.ANSB12 = 1; 
+  ANSELBbits.ANSB12 = 1;
   TRISBbits.TRISB13 = 1;
   ANSELBbits.ANSB13 = 1;
-  ADC_ConfigAutoScan(BIT11HI|BIT12HI);//AN11 is for B13. X pos of joystick; AN12 is for B12, Y pos of joystick
-  ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval);
+  ADC_ConfigAutoScan(BIT11HI | BIT12HI); // AN11 is for B13. X pos of joystick; AN12 is for B12, Y pos of joystick
   
+
   return;
 }
 
 static void config_buttons(void)
 {
-  TRISAbits.TRISA4 = 1; // A4 is the pairing button
-  TRISBbits.TRISB4 = 1; // B4 is the drop coal button
-  TRISBbits.TRISB9 = 1; // B9 is the drop anchor button
+  TRISAbits.TRISA4 = 1;
+  TRISBbits.TRISB4 = 1;
+  TRISBbits.TRISB9 = 1;
+  return;
+}
+
+static void adjust_7seg(size_t digit_input)
+{
+  DB_printf("7seg is displaying boat number: %d\n", digit_input);
+  return;
+}
+
+static void enterDriveMode_s(void)
+{
+  DB_printf("Entering Drive Mode\n");
+  ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval);//joystick now is reading values regularly
+  return;
+}
+
+static void exitDriveMode_s(void)
+{
+  DB_printf("Exiting Drive Mode\n");
+  ES_Timer_StopTimer(JoystickScan_TIMER);
   return;
 }

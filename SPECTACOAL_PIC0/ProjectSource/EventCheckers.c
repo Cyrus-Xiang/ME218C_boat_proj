@@ -114,7 +114,7 @@ bool Check4Keystroke(void)
     ES_Event_t ThisEvent;
     ThisEvent.EventType = ES_NEW_KEY;
     ThisEvent.EventParam = GetNewKey();
-    ES_PostAll(ThisEvent);
+    PostKeyboardService(ThisEvent);
     return true;
   }
   return false;
@@ -143,16 +143,16 @@ bool Check4Buttons()
     if (button_states_curr[i] && !button_states_last[i])
     {
       last_button_down_time[i] = ES_Timer_GetTime(); // update the time
-      DB_printf("Button#%d is down at time %d\n", i,last_button_down_time[i]);
+      //DB_printf("Button#%d is down at time %d\n", i,last_button_down_time[i]);
     }
     // button event is only possible when the current reading is LOW(released) and previous is HIGH(pressed)
     else if (!button_states_curr[i] && button_states_last[i])
     {
       time_now = ES_Timer_GetTime();
-      DB_printf("Button#%d is up at time %d\n", i, time_now);
+      //DB_printf("Button#%d is up at time %d\n", i, time_now);
       if (time_now - last_button_down_time[i] > debounce_time)
       {
-        DB_printf("Button#%d press event sent\n", i);
+        DB_printf("Button#%d press event sent to controllerFSM\n", i);
         ES_Event_t ThisEvent;
         ThisEvent.EventType = corresponding_events[i];
         PostcontrollerFSM(ThisEvent);

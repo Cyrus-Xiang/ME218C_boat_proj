@@ -41,11 +41,11 @@
 // services are added in numeric sequence (1,2,3,...) with increasing
 // priorities
 // the header file with the public function prototypes
-#define SERV_0_HEADER "TestHarnessService0.h"
+#define SERV_0_HEADER "KeyboardService.h"
 // the name of the Init function
-#define SERV_0_INIT InitTestHarnessService0
+#define SERV_0_INIT InitKeyboardService
 // the name of the run function
-#define SERV_0_RUN RunTestHarnessService0
+#define SERV_0_RUN RunKeyboardService
 // How big should this services Queue be?
 #define SERV_0_QUEUE_SIZE 5
 
@@ -262,14 +262,15 @@ typedef enum
   ES_NEW_KEY,               /* signals a new key received from terminal */
   ES_LOCK,
   ES_UNLOCK,
-  //Events for communication service
-  //Events for controllerFSM
+  //Events to communication service
+  //Events to controllerFSM
   ES_CHOOSE_BOAT_BUTTON_PRESSED,
   ES_PAIR_BUTTON_RELEASED,
   ES_PAIR_BUTTON_PRESSED,
   ES_DROP_COAL_BUTTON_PRESSED,
   ES_DROP_ANCHOR_BUTTON_PRESSED,
   ES_IMU_ORIENTATION_SWITCH,
+  ES_BOAT_PAIRED, //sent from communication service to controllerFSM
 }ES_EventType_t;
 
 /****************************************************************************/
@@ -328,7 +329,7 @@ typedef enum
 #define TIMER12_RESP_FUNC TIMER_UNUSED
 #define TIMER13_RESP_FUNC TIMER_UNUSED
 #define TIMER14_RESP_FUNC TIMER_UNUSED
-#define TIMER15_RESP_FUNC PostTestHarnessService0
+#define TIMER15_RESP_FUNC TIMER_UNUSED
 
 /****************************************************************************/
 // Give the timer numbers symbolc names to make it easier to move them
