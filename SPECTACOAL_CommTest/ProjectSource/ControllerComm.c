@@ -29,6 +29,7 @@
 #include "ES_Port.h"
 #include "terminal.h"
 #include "dbprintf.h"
+#include <sys/attribs.h>
 
 /*----------------------------- Module Defines ----------------------------*/
 

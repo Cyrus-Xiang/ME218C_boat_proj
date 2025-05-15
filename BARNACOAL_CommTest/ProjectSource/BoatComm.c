@@ -47,10 +47,19 @@
 static uint8_t MyPriority;
 static UARTState_t CurrentState;
 static volatile uint8_t rxByte = 0xFF; // default to 0xFF
-static uint8_t rxBuffer[FRAME_LEN];
-static uint8_t rxIndex = 0;
-static uint16_t expectedLength = 0;
-static bool receiving = false;
+static volatile uint8_t rxBuffer[FRAME_LEN];
+static volatile uint8_t rxIndex = 0;
+static volatile uint16_t expectedLength = 0;
+static volatile bool isReceiving = false;
+static volatile bool isPaired = false; 
+
+// Payload variables
+static uint8_t sourceAddressMSB = 0xFF; // rxIndex = 4
+static uint8_t sourceAddressLSB = 0xFF; // rxIndex = 5
+static uint8_t statusByte = 0xFF; // rxIndex = 8
+static uint8_t joystickOneByte = 0xFF; // rxIndex = 9
+static uint8_t joystickTwoByte = 0xFF; // rxIndex = 10
+static uint8_t buttonByte = 0xFF; // rxIndex = 11
 
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
@@ -155,7 +164,49 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
     break;
 
     case Receiving: 
+      if (ThisEvent.EventType == ES_PACKET_IN)
+      {
+        ParseAPIFrame();
+        //DB_printf("statusByte = %d\r\n", statusByte);
+        switch (statusByte) 
+        {
+          case 0x00: // Driving
+          {
 
+          }
+          break;
+
+          case 0x01: // Charging
+          {
+
+          }
+          break;
+
+          case 0x02: // Pairing
+          {
+            if (!isPaired) { 
+              isPaired = true; 
+              DB_printf("Post ES_PAIR to BoatFSM\r\n");
+              /*
+              ES_Event_t pairEvent;
+              pairEvent.EventType = ES_PAIR;
+              pairEvent.EventParam = sourceAddress;
+              PostBoatFSM(pairEvent); // Post an event to BoatComm FSM
+              */
+            }
+            else {
+              // Ignore excessive pairing requests or from other sources
+            }
+          }
+          break;
+
+          default:
+          {
+            DB_printf("Error: unsupported status byte\r\n");
+          }
+          break; 
+        }
+      }
     break;
 
     /*
@@ -246,26 +297,27 @@ void SendFrame(const uint8_t *frame, uint8_t len) {
 void __ISR(_UART_2_VECTOR, IPL7SOFT) U2RxISR(void)
 {
   rxByte = U2RXREG; // Read U2RX register into Message
-  DB_printf("rxByte = %d\r\n", rxByte);
-  //ProcessUARTByte(rxByte); // Pass byte to byte-level decoder
+  //DB_printf("rxByte = %d\r\n", rxByte);
+  ProcessUARTByte(rxByte); // Pass byte to byte-level decoder
   IFS1CLR = _IFS1_U2RXIF_MASK; // Clear Rx interrupt flag
 }
 
-/*
 void ProcessUARTByte(uint8_t byte) {
-  if (!receiving) {
+  if (!isReceiving) {
     if (byte == 0x7E) {  // Start delimiter
+      //DB_printf("Received start delimiter\r\n");
       if (rxIndex == 0) {
         rxBuffer[rxIndex] = byte;
         rxIndex++;
-        receiving = true;
+        isReceiving = true;
       }
       else {
-        DB_printf("Received 0x7E, but rxIndex not 0\r\n")
+        DB_printf("Error: Received start delimiter, but rxIndex not 0\r\n");
       }
       return;
     }
-
+  }
+  else { // is receiving
     // Store the byte and then increment
     rxBuffer[rxIndex] = byte;
     rxIndex++;
@@ -277,20 +329,58 @@ void ProcessUARTByte(uint8_t byte) {
       expectedLength = 4 + ((msb << 8) | lsb);  // Add start, length, checksum
     }
 
-    if (expectedLength > 0 && rxIndex == expectedLength) {
-        receiving = false;
-        // ParseAPIFrame(rxBuffer, expectedLength);
-        rxIndex = 0;
+    if (expectedLength > 0 && rxIndex == expectedLength) { // complete a packet
+      DB_printf("Received a packet\r\n");
+      ES_Event_t RxEvent;
+      RxEvent.EventType = ES_PACKET_IN;
+      PostBoatComm(RxEvent); // Post an event to BoatComm FSM
+      isReceiving = false;
+      rxIndex = 0;
     }
 
-    if (rxIndex >= MAX_FRAME_SIZE) {
-        // Overflow or malformed frame, reset
-        receiving = false;
-        rxIndex = 0;
+    if (rxIndex > FRAME_LEN) {
+      // Overflow or malformed frame, reset
+      DB_printf("Error: rxBuffer overflow, check your framing\r\n");
+      isReceiving = false;
+      rxIndex = 0;
     }
   }
 }
-*/
+
+
+void ParseAPIFrame() {
+  // Step 1: Sanity check for start byte
+  if (rxBuffer[0] != 0x7E) {
+    DB_printf("Error: Invalid Start Delimiter\r\n");
+    return;
+  }
+
+  // Step 2: Verify checksum
+  uint8_t calculatedChecksum = 0;
+  for (uint16_t i = 3; i < expectedLength - 1; i++) {
+    calculatedChecksum += rxBuffer[i];
+  }
+  calculatedChecksum = 0xFF - calculatedChecksum;
+  uint8_t receivedChecksum = rxBuffer[expectedLength - 1];
+  if (calculatedChecksum != receivedChecksum) {
+    DB_printf("Error: checksum mismatch\r\n");
+    return;
+  }
+
+  // Step 3: Extract Frame Type, should only consider 0x81
+  uint8_t frameType = rxBuffer[3];
+  if (frameType != 0x81) {
+    DB_printf("Error: unsupported frame type\r\n");
+  }
+  else {
+    sourceAddressMSB = rxBuffer[4];
+    sourceAddressLSB = rxBuffer[5];
+    statusByte = rxBuffer[8];
+    joystickOneByte = rxBuffer[9];
+    joystickTwoByte = rxBuffer[10];
+    buttonByte = rxBuffer[11];
+  }
+}
 
 // TODO: Implement checkSum function? 
 /*------------------------------- Footnotes -------------------------------*/
