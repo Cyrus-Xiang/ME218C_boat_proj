@@ -45,7 +45,7 @@
 
 uint8_t txFrame[] = {
   0x7E,          // Start delimiter
-  0x00, 0x08,    // Length (MSB, LSB) = 8 bytes of data after this field
+  0x00, 0x09,    // Length (MSB, LSB) = 8 bytes of data after this field
   0x01,          // Frame type = TX (16-bit address)
   0x00,          // Frame ID (0 = no ACK)
   0x20, 0x86,    // TEST: Destination address = 0x2086
