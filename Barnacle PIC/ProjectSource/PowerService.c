@@ -33,12 +33,16 @@
 #include "ES_Configure.h"
 #include "ES_Framework.h"
 #include "dbprintf.h"
+#include "DrivetrainService.h"
 
 /*----------------------------- Module Defines ----------------------------*/
 #define ONE_SEC 1000
 #define HALF_SEC ONE_SEC/2
+#define FOUR_SEC ONE_SEC*4
 
+#define DECHARGE_PERIOD ONE_SEC
 #define RECHARGE_PERIOD ONE_SEC
+#define IDLE_TIME FOUR_SEC
 #define FULL_POWER 30
 #define NO_POWER 0
 /*---------------------------- Module Functions ---------------------------*/
@@ -49,7 +53,7 @@
 /*---------------------------- Module Variables ---------------------------*/
 // everybody needs a state variable, you may need others as well.
 // type of state variable should match htat of enum in header file
-static PowerState_t CurrentState = Idle;
+static BarnacleState_t CurrentState = Idle;
 
 // with the introduction of Gen2, we need a module level Priority var as well
 static uint8_t MyPriority;
@@ -165,9 +169,9 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
     {
       if (ThisEvent.EventType == ES_COMMAND)
       {
-        ES_Timer_InitTimer(DECHARGE_TIMER, DECHARGE_TIME);
+        ES_Timer_InitTimer(POWER_TIMER, DECHARGE_PERIOD);
         ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
-        CurrentState =  Power_On
+        CurrentState =  Power_On;
       }
     }
     break;
@@ -176,20 +180,34 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
     {
       switch (ThisEvent.EventType)
       {
-        case ES_CHARGE:  
+        case ES_CHARGING_START:  
         {  
-          ES_Timer_InitTimer(RECHARGE_TIMER, RECHARGE_TIME);
+          ES_Timer_InitTimer(POWER_TIMER, RECHARGE_PERIOD);
           CurrentState = Recharging;
         }
         break;
 
         case ES_TIMEOUT:  
         {  
-          if (ThisEvent.EventParam == DECHARGE_TIMER)
+          if (ThisEvent.EventParam == POWER_TIMER)
           {
-            ES_Timer_InitTimer(DECHARGE_TIMER, DECHARGE_TIME);
+            ES_Timer_InitTimer(POWER_TIMER, DECHARGE_PERIOD);
             Power -= 1;
+            if (Power == 0)
+            {
+              CurrentState = No_Power;
+            }
           }
+          if (ThisEvent.EventParam == IDLE_TIMER)
+          {
+            CurrentState = Idle;
+          }
+        }
+        break;
+
+        case ES_COMMAND:
+        {
+          ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
         }
         break;
 
@@ -199,27 +217,47 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
     }
     break;
 
-    case UnlockWaiting:        // If current state is state one
+    case Recharging:       
     {
       switch (ThisEvent.EventType)
       {
-        case ES_LOCK:  //If event is event one
-
-        {   // Execute action function for state one : event one
-          CurrentState = Locked;  //Decide what the next state will be
+        case ES_CHARGING_END:  
+        {  
+          CurrentState = Idle;
         }
         break;
 
-        // repeat cases as required for relevant events
+        case ES_TIMEOUT:  
+        {  
+          if (ThisEvent.EventParam == POWER_TIMER)
+          {
+            ES_Timer_InitTimer(POWER_TIMER, RECHARGE_PERIOD);
+            Power += 1;
+            Power = (Power<FULL_POWER)?Power:FULL_POWER;
+          }
+          if (ThisEvent.EventParam == IDLE_TIMER)
+          {
+            CurrentState = Idle;
+          }
+        }
+        break;
+
+        case ES_COMMAND:
+        {
+          ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
+        }
+        break;
+
         default:
-          ;
-      }  // end switch on CurrentEvent
+          break;
+      }
     }
     break;
-    // repeat state pattern as required for other states
+
+    
     default:
       break;
-  }                                   // end switch on Current State
+  }                                   
   return ReturnEvent;
 }
 

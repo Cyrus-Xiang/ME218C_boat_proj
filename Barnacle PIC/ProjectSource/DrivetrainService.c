@@ -35,21 +35,27 @@
 #include "ES_Framework.h"
 #include "dbprintf.h"
 #include "ADService.h"
-#include <sys/attribs.h>
+#include "PowerService.h"
+
 
 /*----------------------------- Module Defines ----------------------------*/
 #define FREQUENCY_PBCLK 20000000 //20MHz
-#define FREQUENCY_DESIRED 480 // 2873HZ don't know why, but should be the same as lab 7
+#define FREQUENCY_DESIRED 500 // 2873HZ don't know why, but should be the same as lab 7
 #define PRESCALAR 0b010 // 1:4 
 #define PERIOD_DESIRED FREQUENCY_PBCLK/FREQUENCY_DESIRED/(4)
 #define PERIOD_COUNT PERIOD_DESIRED-1
 
-#define PWM_MIN 50
+#define PWM_MIN 60
 #define PWM_OFF 75
-#define PWM_MAX 100
+#define PWM_MAX 90
+
+#define SERVO_OPEN_POS 100
+#define SERVO_OPEN_POS 50
 
 #define ONE_SEC 1000
 #define HALF_SEC ONE_SEC/2
+
+#define TURN_WEIGHT 1/4
 
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this machine.They should be functions
@@ -59,17 +65,20 @@
 /*---------------------------- Module Variables ---------------------------*/
 // everybody needs a state variable, you may need others as well.
 // type of state variable should match htat of enum in header file
-static DrivetrainState_t CurrentState;
+static BarnacleState_t CurrentState;
 
 // with the introduction of Gen2, we need a module level Priority var as well
 static uint8_t MyPriority;
 
+static uint32_t PR = PERIOD_COUNT;
+
 // parameter for control
 static uint8_t Velocity = 0;
 static uint8_t Omega = 0;
-static uint8_t DriveSpeed;
-static uint8_t TurnSpeed;
-static uint32_t PR = PERIOD_COUNT;
+static uint8_t ScaledLeft = 127;
+static uint8_t ScaledRight = 127;
+static uint8_t PWMLeft = 50;
+static uint8_t PWMRight = 50;
 
 
 /*------------------------------ Module Code ------------------------------*/
@@ -101,10 +110,12 @@ bool InitDrivetrainService(uint8_t Priority)
   //Configure pins
   ANSELAbits.ANSA0 = 0; //disable analog on RA0, RA1 for digital output
   ANSELAbits.ANSA1 = 0;
-  TRISAbits.TRISA0 = 0; //set RA0, RA1 as output for motor control
+  TRISAbits.TRISA0 = 0; //set RA0, RA1, RA3 as output for motor control
   TRISAbits.TRISA1 = 0;
-  RPA0R = 0b0101; //map RA0, RA1 to output compare mode 
-  RPA1R = 0b0101; 
+  TRISAbits.TRISA3 = 0;
+  RPA0R = 0b0101; //map RA0, RA1, RA3 to output compare mode 
+  RPA1R = 0b0101;
+  RPA3R = 0b0101;
   TRISAbits.TRISA4 = 1; //set RA4 as the digital input for direction switch
 
   //Configure Timer2
@@ -118,25 +129,32 @@ bool InitDrivetrainService(uint8_t Priority)
   IEC0CLR = _IEC0_T2IE_MASK; //disable interrupt on TMR2
 
   //Configure output compare module
-  OC1CONbits.ON = 0; //disable OC1, OC2 for configuration
+  OC1CONbits.ON = 0; //disable OC1, OC2, OC3 for configuration
   OC2CONbits.ON = 0;
-  OC1CONbits.OC32 = 0; //set OC1, OC2 for comparison to 16bit timer source
+  OC3CONbits.ON = 0;
+  OC1CONbits.OC32 = 0; //set OC1, OC2, OC3 for comparison to 16bit timer source
   OC2CONbits.OC32 = 0; 
-  OC1CONbits.OCTSEL = 0; //set OC1, OC2 that Timer2 is the source for OC
+  OC3CONbits.OC32 = 0; 
+  OC1CONbits.OCTSEL = 0; //set OC1, OC2, OC3 that Timer2 is the source for OC
   OC2CONbits.OCTSEL = 0; 
-  OC1CONbits.OCM = 0b110; //set PWM mode on OC1, OC2 and disable fault pin
+  OC3CONbits.OCTSEL = 0; 
+  OC1CONbits.OCM = 0b110; //set PWM mode on OC1, OC2, OC3 and disable fault pin
   OC2CONbits.OCM = 0b110;
+  OC3CONbits.OCM = 0b110;
 
   //Finish configuration, enable Timer and Output Compare Module
   T2CONbits.ON = 1; //enable Timer2
-  OC1CONbits.ON = 1; //enable OC1, OC2
+  OC1CONbits.ON = 1; //enable OC1, OC2, OC3
   OC2CONbits.ON = 1;
+  OC3CONbits.ON = 1;
 
   //Initialize PWM with zero rotation
-  OC1R = PR;
-  OC2R = PR;
-  OC1RS = PR;
-  OC2RS = PR;
+  OC1R = PR*PWM_OFF/100;
+  OC2R = PR*PWM_OFF/100;
+  OC3R = PR;
+  OC1RS = PR*PWM_OFF/100;
+  OC2RS = PR*PWM_OFF/100;
+  OC3RS = PR;
   
   CurrentState = InitPState;
   // post the initial transition event
@@ -206,6 +224,7 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
       }
     }
     break;
+
     case Pairing:
     {
       if(ThisEvent.EventType == ES_PAIRED)
@@ -238,14 +257,26 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
     }
     break;
 
-    case Driving:        // If current state is driving State
+    case Driving:  
     {
-      
       switch (ThisEvent.EventType)
       {
         case ES_COMMAND:
         {
           PWMUpdate(Velocity, Omega);
+        }
+        break;
+
+        case ES_DUMP:
+        {
+          if(ThisEvent.EventParam == 1)
+          {
+            OC3RS = PR*SERVO_OPEN_POS/100;
+          }
+          if(ThisEvent.EventParam == 0)
+          {
+            OC3RS = PR*SERVO_CLOSE_POS/100;
+          }
         }
         break;
 
@@ -276,7 +307,6 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
         default:
           break;
       }
-   
     }
     break;
 
@@ -292,11 +322,37 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
 
 void PWMUpdate(uint8_t Velocity, uint8_t Omega)
 {
-  uint8_t ADControl = GetScaledPotentialValue();
-  uint8_t PWM_Left = PWM_MIN + (PWM_MAX - PWM_MIN) * ADControl/100;
-  uint8_t PWM_Right = PWM_MIN + (PWM_MAX - PWM_MIN) * ADControl/100;
-  OC1RS = PR * PWM_Left/100;
-  OC2RS = PR * PWM_Right/100;
+  ScaledLeft = Velocity - (Omega - 127) * TURN_WEIGHT;
+  ScaledRight = Velocity + (Omega - 127) * TURN_WEIGHT;
+  if(ScaledLeft > 255)
+  {
+    ScaledLeft = 255;
+  }
+  if(ScaledRight > 255)
+  {
+    ScaledRight = 255;
+  }
+  if(ScaledLeft < 0)
+  {
+    ScaledLeft = 0;
+  }
+  if(ScaledRight < 0)
+  {
+    ScaledRight = 0;
+  }
+  
+  // uint8_t ADControl = GetScaledPotentialValue();
+  uint8_t PWMLeft = PWM_MIN + (PWM_MAX - PWM_MIN) * ScaledLeft/255;
+  uint8_t PWMRight = PWM_MIN + (PWM_MAX - PWM_MIN) * ScaledRight/255;
+  OC1RS = PR * PWMLeft/100;
+  OC2RS = PR * PWMRight/100;
+}
+
+uint8_t BoundaryCheck(uint8_t Value)
+{
+  Value = (Value<255)?Value:255;
+  Value = (Value>0)?Value:0;
+  return Value;
 }
 
 void PairingStateIndicator()

@@ -33,7 +33,7 @@
 /****************************************************************************/
 // This macro determines that nuber of services that are *actually* used in
 // a particular application. It will vary in value from 1 to MAX_NUM_SERVICES
-#define NUM_SERVICES 3
+#define NUM_SERVICES 4
 
 /****************************************************************************/
 // These are the definitions for Service 0, the lowest priority service.
@@ -70,11 +70,11 @@
 // These are the definitions for Service 2
 #if NUM_SERVICES > 2
 // the header file with the public function prototypes
-#define SERV_2_HEADER "ADService.h"
+#define SERV_2_HEADER "PowerService.h"
 // the name of the Init function
-#define SERV_2_INIT InitADService
+#define SERV_2_INIT InitPowerService
 // the name of the run function
-#define SERV_2_RUN RunADService
+#define SERV_2_RUN RunPowerService
 // How big should this services Queue be?
 #define SERV_2_QUEUE_SIZE 3
 #endif
@@ -83,11 +83,11 @@
 // These are the definitions for Service 3
 #if NUM_SERVICES > 3
 // the header file with the public function prototypes
-#define SERV_3_HEADER "TestHarnessService3.h"
+#define SERV_3_HEADER "ADService.h"
 // the name of the Init function
-#define SERV_3_INIT InitTestHarnessService3
+#define SERV_3_INIT InitADService
 // the name of the run function
-#define SERV_3_RUN RunTestHarnessService3
+#define SERV_3_RUN RunADService
 // How big should this services Queue be?
 #define SERV_3_QUEUE_SIZE 3
 #endif
@@ -270,6 +270,7 @@ typedef enum
   ES_NOPWR,
   ES_CHARGING_START,
   ES_CHARGING_END,
+  ES_DUMP
 }ES_EventType_t;
 
 /****************************************************************************/
@@ -325,9 +326,9 @@ typedef enum
 #define TIMER9_RESP_FUNC TIMER_UNUSED
 #define TIMER10_RESP_FUNC TIMER_UNUSED
 #define TIMER11_RESP_FUNC TIMER_UNUSED
-#define TIMER12_RESP_FUNC TIMER_UNUSED
-#define TIMER13_RESP_FUNC PostADService
-// #define TIMER13_RESP_FUNC PostPowerService
+#define TIMER12_RESP_FUNC PostADService
+// #define TIMER13_RESP_FUNC PostADService
+#define TIMER13_RESP_FUNC PostPowerService
 #define TIMER14_RESP_FUNC PostDrivetrainService
 #define TIMER15_RESP_FUNC PostTestHarnessService0
 
@@ -340,7 +341,8 @@ typedef enum
 
 #define SERVICE0_TIMER 15
 #define IDLE_TIMER 14
-#define AD_TIMER 13
+#define POWER_TIMER 13
+#define AD_TIMER 12
 // #define CHARGE_TIMER 13
 
 
