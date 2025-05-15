@@ -122,33 +122,40 @@ bool Check4Keystroke(void)
 
 bool Check4Buttons()
 {
-  #define debounce_time 100
-  #define numOfButtons 3
+#define debounce_time 100
+#define numOfButtons 3
   bool toReturn = false;
   volatile uint32_t *port_bit[numOfButtons] = {&PORTA, &PORTB, &PORTB}; // A4, B4, B9
   static uint32_t PortMasks[numOfButtons] = {1L << 4, 1L << 4, 1L << 9};
   static bool button_states_last[numOfButtons] = {0};
   static bool button_states_curr[numOfButtons] = {0};
-  static uint16_t last_button_switch_time[numOfButtons] = {0}; // ES_Timer_GetTime() returns uint16_t
+  static uint16_t last_button_down_time[numOfButtons] = {0}; // ES_Timer_GetTime() returns uint16_t
   static uint16_t time_now = 0;
 
   // read the buttons and check ups and downs
   for (int i = 0; i < numOfButtons; i++)
   {
     button_states_curr[i] = (*port_bit[i] & PortMasks[i]);
-    if (button_states_curr[i] != button_states_last[i] && button_states_curr[i])
+    // HIGH = button down, LOW = button up
+    // event is posted when the button is released (LOW)
+    if (button_states_curr[i] && !button_states_last[i])
+    {
+      last_button_down_time[i] = ES_Timer_GetTime(); // update the time
+      DB_printf("Button#%d is down at time %d\n", i,last_button_down_time[i]);
+    }
+    // button event is only possible when the current reading is LOW(released) and previous is HIGH(pressed)
+    else if (!button_states_curr[i] && button_states_last[i])
     {
       time_now = ES_Timer_GetTime();
-      DB_printf("Button#%d Pressed\n",i);
-      if (time_now - last_button_switch_time[i] > debounce_time)
+      DB_printf("Button#%d is up at time %d\n", i, time_now);
+      if (time_now - last_button_down_time[i] > debounce_time)
       {
-        DB_printf("Button#%d press event sent\n",i);
+        DB_printf("Button#%d press event sent\n", i);
         ES_Event_t ThisEvent;
         ThisEvent.EventType = ES_PAIR_BUTTON_PRESSED;
         PostcontrollerFSM(ThisEvent);
         toReturn = true;
       }
-      last_button_switch_time[i] = time_now; // update the time
     }
   }
 
