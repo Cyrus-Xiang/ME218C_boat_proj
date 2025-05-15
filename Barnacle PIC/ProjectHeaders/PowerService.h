@@ -17,8 +17,8 @@
 // State definitions for use with the query function
 typedef enum
 {
-  No_Power, Recharging, Power_On
-}PowerState_t;
+  InitPState, Pairing, Idle, Driving, No_Power, Recharging, Power_On
+}BarnacleState_t;
 
 // Public Function Prototypes
 
