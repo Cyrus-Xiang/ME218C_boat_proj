@@ -127,6 +127,8 @@ bool Check4Buttons()
   bool toReturn = false;
   volatile uint32_t *port_bit[numOfButtons] = {&PORTA, &PORTB, &PORTB}; // A4, B4, B9
   static uint32_t PortMasks[numOfButtons] = {1L << 4, 1L << 4, 1L << 9};
+  static ES_EventType_t corresponding_events[numOfButtons] = { ES_CHOOSE_BOAT_BUTTON_PRESSED, ES_PAIR_BUTTON_PRESSED,
+  ES_DROP_COAL_BUTTON_PRESSED, };//events for these buttons
   static bool button_states_last[numOfButtons] = {0};
   static bool button_states_curr[numOfButtons] = {0};
   static uint16_t last_button_down_time[numOfButtons] = {0}; // ES_Timer_GetTime() returns uint16_t
@@ -152,7 +154,7 @@ bool Check4Buttons()
       {
         DB_printf("Button#%d press event sent\n", i);
         ES_Event_t ThisEvent;
-        ThisEvent.EventType = ES_PAIR_BUTTON_PRESSED;
+        ThisEvent.EventType = corresponding_events[i];
         PostcontrollerFSM(ThisEvent);
         toReturn = true;
       }

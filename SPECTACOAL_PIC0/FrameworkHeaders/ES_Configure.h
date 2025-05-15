@@ -264,6 +264,7 @@ typedef enum
   ES_UNLOCK,
   //Events for communication service
   //Events for controllerFSM
+  ES_CHOOSE_BOAT_BUTTON_PRESSED,
   ES_PAIR_BUTTON_RELEASED,
   ES_PAIR_BUTTON_PRESSED,
   ES_DROP_COAL_BUTTON_PRESSED,
