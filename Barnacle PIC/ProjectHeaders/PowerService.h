@@ -1,12 +1,12 @@
 /****************************************************************************
 
-  Header file for Drivetrain Service
+  Header file for template Flat Sate Machine
   based on the Gen2 Events and Services Framework
 
  ****************************************************************************/
 
-#ifndef DrivetrainService_H
-#define DrivetrainService_H
+#ifndef PowerService_H
+#define PowerService_H
 
 // Event Definitions
 #include "ES_Configure.h" /* gets us event definitions */
@@ -17,16 +17,14 @@
 // State definitions for use with the query function
 typedef enum
 {
-  InitPState, Pairing, Driving, Idle
-}DrivetrainState_t;
+  No_Power, Recharging, Power_On
+}PowerState_t;
 
 // Public Function Prototypes
 
-bool InitDrivetrainService(uint8_t Priority);
-bool PostDrivetrainService(ES_Event_t ThisEvent);
-ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent);
-void PWMUpdate(uint8_t velocity, uint8_t omega);
-void PairingStateIndicator(void);
+bool InitPowerService(uint8_t Priority);
+bool PostPowerService(ES_Event_t ThisEvent);
+ES_Event_t RunPowerService(ES_Event_t ThisEvent);
 
-#endif /*DrivetrainService_H */
+#endif /* FSMTemplate_H */
 
