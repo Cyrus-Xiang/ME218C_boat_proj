@@ -24,12 +24,15 @@
 #include <xc.h>
 #include "ES_Configure.h"
 #include "ES_Framework.h"
-#include "BoatComm.h"
 #include "ES_DeferRecall.h"
 #include "ES_Port.h"
 #include "terminal.h"
 #include "dbprintf.h"
 #include <sys/attribs.h>
+
+#include "BoatComm.h"
+#include "DrivetrainService.h"
+#include "PowerService.h"
 
 /*----------------------------- Module Defines ----------------------------*/
 
@@ -45,14 +48,13 @@
 #define FRAME_LEN 13
 
 static uint8_t MyPriority;
-static UARTState_t CurrentState;
+static UARTState_t CurrentState = InitState;
 static volatile uint8_t rxByte = 0xFF; // default to 0xFF
 static volatile uint8_t rxBuffer[FRAME_LEN];
 static volatile uint8_t rxIndex = 0;
 static volatile uint16_t expectedLength = 0;
 static volatile bool isReceiving = false;
-static volatile bool isPaired = false; 
-
+static volatile bool isPaired = true; // TODO: default to false later
 // Payload variables
 uint8_t sourceAddressMSB = 0xFF; // rxIndex = 4
 uint8_t sourceAddressLSB = 0xFF; // rxIndex = 5
@@ -153,7 +155,7 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
    *******************************************/
   switch (CurrentState)
   {
-    case InitPState:        // If current state is initial Psedudo State
+    case InitState:        // If current state is initial Psedudo State
     {
       if (ThisEvent.EventType == ES_INIT)    // only respond to ES_Init
       {
@@ -164,21 +166,29 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
     break;
 
     case Receiving: 
+      /*
       if (ThisEvent.EventType == ES_TIMEOUT && ThisEvent.EventParam == BOATCOMM_TIMER)
       {
         isPaired == false; // Unpair the boat from current controller
         //postBoatFSM(ES_UNPAIR); 
       }
+      */
       if (ThisEvent.EventType == ES_PACKET_IN)
       {
         ParseAPIFrame();
-        //DB_printf("statusByte = %d\r\n", statusByte);
+        //DB_printf("Debug 5\r\n");
+        DB_printf("statusByte = %d\r\n", statusByte);
         switch (statusByte) 
         {
           case 0x00: // Driving
           {
+            DB_printf("Debug 6\r\n");
             if (isPaired) {
-              // Post 
+              DB_printf("Debug 4\r\n");
+              ES_Event_t Event2Post;
+              Event2Post.EventType = ES_COMMAND;
+              PostDrivetrainService(Event2Post);
+              PostPowerService(Event2Post);
             }
             else {
               DB_printf("Error: Boat unpaired, invalid command\r\n");
@@ -340,7 +350,7 @@ void ProcessUARTByte(uint8_t byte) {
     }
 
     if (expectedLength > 0 && rxIndex == expectedLength) { // complete a packet
-      DB_printf("Received a packet\r\n");
+      //DB_printf("Received a packet\r\n");
       ES_Event_t RxEvent;
       RxEvent.EventType = ES_PACKET_IN;
       PostBoatComm(RxEvent); // Post an event to BoatComm FSM

@@ -51,9 +51,21 @@ uint8_t txFrame[] = {
   0x00,          // Frame ID (0 = no ACK)
   0x20, 0x86,    // TEST: Destination address = 0x2086
   0x01,          // Options = 0x01 to disable ACK
-  0x02, 0x00, 0x00, 0x00,// TEST: Pairing: 0x02 (byte 9), 0x00 (byte 10), 0x00 (byte 11), 0x00 (byte 12)
-  0x55           // Checksum (computed as 0xFF - sum of bytes after 0x7E)
+  0x00, 0x7F, 0x7F, 0x00,// TEST: Pairing: 0x02 (byte 9), 0x00 (byte 10), 0x00 (byte 11), 0x00 (byte 12)
+  0x59           // Checksum (computed as 0xFF - sum of bytes after 0x7E)
 };
+
+uint8_t txFrame2[] = {
+  0x7E,          // Start delimiter
+  0x00, 0x09,    // Length (MSB, LSB) = 8 bytes of data after this field
+  0x01,          // Frame type = TX (16-bit address)
+  0x00,          // Frame ID (0 = no ACK)
+  0x20, 0x86,    // TEST: Destination address = 0x2086
+  0x01,          // Options = 0x01 to disable ACK
+  0x00, 0xC8, 0xC8, 0x00,// TEST: Pairing: 0x02 (byte 9), 0x00 (byte 10), 0x00 (byte 11), 0x00 (byte 12)
+  0xC7           // Checksum (computed as 0xFF - sum of bytes after 0x7E)
+};
+static uint8_t counter = 0; 
 static uint8_t MyPriority;
 
 /*------------------------------ Module Code ------------------------------*/
@@ -149,7 +161,7 @@ ES_Event_t RunControllerComm(ES_Event_t ThisEvent)
   switch (ThisEvent.EventType) {
     case ES_INIT:
     {
-      ES_Timer_InitTimer(CTRLCOMM_TIMER, ONEFIFTH_SEC);
+      ES_Timer_InitTimer(CTRLCOMM_TIMER, ONE_SEC);
       puts("Service 00:");
       DB_printf("\rES_INIT received in Service %d\r\n", MyPriority);
     }
@@ -157,9 +169,16 @@ ES_Event_t RunControllerComm(ES_Event_t ThisEvent)
     case ES_TIMEOUT:
       if (ThisEvent.EventParam == CTRLCOMM_TIMER) { 
         // 1. Build and send txFrame
-        SendFrame(txFrame, FRAME_LEN);
+        if (counter <= 10) {
+          SendFrame(txFrame, FRAME_LEN);
+          counter++;
+        }
+        else {
+          SendFrame(txFrame2, FRAME_LEN);
+        }
+        //SendFrame(txFrame, FRAME_LEN);
         // 2. Restart 200ms timer
-        ES_Timer_InitTimer(CTRLCOMM_TIMER, ONEFIFTH_SEC);
+        ES_Timer_InitTimer(CTRLCOMM_TIMER, ONE_SEC);
       }
     break;
   }
