@@ -18,7 +18,7 @@
 
 enum{
 delimiter_byte, length_msb_byte, length_lsb_byte,
-frame_type_byte,frame_id_byte,dst_addr_msb_byte, dst_addr_lsb_byte,
+frame_type_byte,frame_id_byte,dst_addr_msb_byte, dst_addr_lsb_byte,options_byte,
 status_byte,joy_x_byte,joy_y_byte,buttons_byte,check_sum_byte,
 };
 // typedefs for the states
