@@ -3,7 +3,7 @@
     <type>com.microchip.mplab.nbide.embedded.makeproject</type>
     <configuration>
         <data xmlns="http://www.netbeans.org/ns/make-project/1">
-            <name>SPECTACOAL_PIC0</name>
+            <name>BARNACOAL_PIC1</name>
             <creation-uuid>878724fe-2b46-4e91-9066-f6b662e6d637</creation-uuid>
             <make-project-type>0</make-project-type>
             <c-extensions>c</c-extensions>

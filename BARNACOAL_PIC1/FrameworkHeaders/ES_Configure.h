@@ -33,7 +33,7 @@
 /****************************************************************************/
 // This macro determines that nuber of services that are *actually* used in
 // a particular application. It will vary in value from 1 to MAX_NUM_SERVICES
-#define NUM_SERVICES 3
+#define NUM_SERVICES 4
 
 /****************************************************************************/
 // These are the definitions for Service 0, the lowest priority service.
@@ -41,11 +41,11 @@
 // services are added in numeric sequence (1,2,3,...) with increasing
 // priorities
 // the header file with the public function prototypes
-#define SERV_0_HEADER "KeyboardService.h"
+#define SERV_0_HEADER "TestHarnessService0.h"
 // the name of the Init function
-#define SERV_0_INIT InitKeyboardService
+#define SERV_0_INIT InitTestHarnessService0
 // the name of the run function
-#define SERV_0_RUN RunKeyboardService
+#define SERV_0_RUN RunTestHarnessService0
 // How big should this services Queue be?
 #define SERV_0_QUEUE_SIZE 5
 
@@ -57,11 +57,11 @@
 // These are the definitions for Service 1
 #if NUM_SERVICES > 1
 // the header file with the public function prototypes
-#define SERV_1_HEADER "ControllerComm.h"
+#define SERV_1_HEADER "BoatComm.h"
 // the name of the Init function
-#define SERV_1_INIT InitControllerComm
+#define SERV_1_INIT InitBoatComm
 // the name of the run function
-#define SERV_1_RUN RunControllerComm
+#define SERV_1_RUN RunBoatComm
 // How big should this services Queue be?
 #define SERV_1_QUEUE_SIZE 3
 #endif
@@ -70,11 +70,11 @@
 // These are the definitions for Service 2
 #if NUM_SERVICES > 2
 // the header file with the public function prototypes
-#define SERV_2_HEADER "controllerFSM.h"
+#define SERV_2_HEADER "DrivetrainService.h"
 // the name of the Init function
-#define SERV_2_INIT InitcontrollerFSM
+#define SERV_2_INIT InitDrivetrainService
 // the name of the run function
-#define SERV_2_RUN RuncontrollerFSM
+#define SERV_2_RUN RunDrivetrainService
 // How big should this services Queue be?
 #define SERV_2_QUEUE_SIZE 3
 #endif
@@ -83,11 +83,11 @@
 // These are the definitions for Service 3
 #if NUM_SERVICES > 3
 // the header file with the public function prototypes
-#define SERV_3_HEADER "KeyboardService.h"
+#define SERV_3_HEADER "PowerService.h"
 // the name of the Init function
-#define SERV_3_INIT InitKeyboardService
+#define SERV_3_INIT InitPowerService
 // the name of the run function
-#define SERV_3_RUN RunKeyboardService
+#define SERV_3_RUN RunPowerService
 // How big should this services Queue be?
 #define SERV_3_QUEUE_SIZE 3
 #endif
@@ -262,15 +262,16 @@ typedef enum
   ES_NEW_KEY,               /* signals a new key received from terminal */
   ES_LOCK,
   ES_UNLOCK,
-   //Events to communication service
-  //Events to controllerFSM
-  ES_CHOOSE_BOAT_BUTTON_PRESSED,
-  ES_PAIR_BUTTON_RELEASED,
-  ES_PAIR_BUTTON_PRESSED,
-  ES_DROP_COAL_BUTTON_PRESSED,
-  ES_DROP_ANCHOR_BUTTON_PRESSED,
-  ES_IMU_ORIENTATION_SWITCH,
-  ES_BOAT_PAIRED, //sent from communication service to controllerFSM
+  ES_PACKET_IN,
+
+  // Boat Events
+  ES_PAIRED,
+  ES_UNPAIRED,
+  ES_COMMAND,
+  ES_NOPWR,
+  ES_CHARGING_START,
+  ES_CHARGING_END,
+  ES_DUMP
 }ES_EventType_t;
 
 /****************************************************************************/
@@ -305,7 +306,7 @@ typedef enum
 
 /****************************************************************************/
 // This is the list of event checking functions
-#define EVENT_CHECK_LIST Check4Keystroke, Check4Buttons
+#define EVENT_CHECK_LIST Check4Keystroke
 
 /****************************************************************************/
 // These are the definitions for the post functions to be executed when the
@@ -314,7 +315,7 @@ typedef enum
 // Unlike services, any combination of timers may be used and there is no
 // priority in servicing them
 #define TIMER_UNUSED ((pPostFunc)0)
-#define TIMER0_RESP_FUNC PostcontrollerFSM
+#define TIMER0_RESP_FUNC TIMER_UNUSED
 #define TIMER1_RESP_FUNC TIMER_UNUSED
 #define TIMER2_RESP_FUNC TIMER_UNUSED
 #define TIMER3_RESP_FUNC TIMER_UNUSED
@@ -325,11 +326,12 @@ typedef enum
 #define TIMER8_RESP_FUNC TIMER_UNUSED
 #define TIMER9_RESP_FUNC TIMER_UNUSED
 #define TIMER10_RESP_FUNC TIMER_UNUSED
-#define TIMER11_RESP_FUNC TIMER_UNUSED
+#define TIMER11_RESP_FUNC PostBoatComm
 #define TIMER12_RESP_FUNC TIMER_UNUSED
-#define TIMER13_RESP_FUNC TIMER_UNUSED
-#define TIMER14_RESP_FUNC PostControllerComm
-#define TIMER15_RESP_FUNC TIMER_UNUSED
+// #define TIMER13_RESP_FUNC PostADService
+#define TIMER13_RESP_FUNC PostPowerService
+#define TIMER14_RESP_FUNC PostDrivetrainService
+#define TIMER15_RESP_FUNC PostTestHarnessService0
 
 /****************************************************************************/
 // Give the timer numbers symbolc names to make it easier to move them
@@ -338,8 +340,10 @@ typedef enum
 // the timer number matches where the timer event will be routed
 // These symbolic names should be changed to be relevant to your application
 
-//#define SERVICE0_TIMER 15
-#define CTRLCOMM_TIMER 14
-#define JoystickScan_TIMER 0
+#define SERVICE0_TIMER 15
+#define IDLE_TIMER 14
+#define POWER_TIMER 13
+// #define AD_TIMER 12
+#define BOATCOMM_TIMER 11
 
 #endif /* ES_CONFIGURE_H */
