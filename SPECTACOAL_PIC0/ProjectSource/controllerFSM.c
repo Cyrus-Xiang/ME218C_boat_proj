@@ -48,7 +48,7 @@ static void exitChargeMode_s(void);
 static controllerState_t CurrentState;
 
 // with the introduction of Gen2, we need a module level Priority var as well
-#define ADC_scan_interval 500
+#define ADC_scan_interval 200
 static uint8_t MyPriority;
 static uint32_t Curr_AD_Val[2];
 static uint8_t boat_selected = 1;
@@ -157,6 +157,9 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
     // read the joystick values
     ADC_MultiRead(Curr_AD_Val);
     DB_printf("X: %d Y: %d\n", Curr_AD_Val[0], Curr_AD_Val[1]);
+    // update the joystick values in the txFrame
+    txFrame[joy_x_byte] = (uint8_t)(Curr_AD_Val[0] >> 2); // right shift to get 8 bits (divide by 4)
+    txFrame[joy_y_byte] = (uint8_t)(Curr_AD_Val[1] >> 2); // right shift to get 8 bits (divide by 4)
     ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval);
   }
   switch (CurrentState)
@@ -181,11 +184,11 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
     }
     else if (ThisEvent.EventType == ES_PAIR_BUTTON_PRESSED)
     {
-  
+      CurrentState = Pairing_s;
       // update the pairing status byte in txFrame
       txFrame[status_byte] = pairing_status_msg;
       DB_printf("start pairing with boart number %d\n", boat_selected);
-      CurrentState = Pairing_s;
+      
     }
   }
   break;
@@ -204,12 +207,27 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
    if (ThisEvent.EventType == ES_DROP_COAL_BUTTON_PRESSED)
     {
       DB_printf("Drop coal event received\n");
+    }else if (ThisEvent.EventType == ES_DROP_ANCHOR_BUTTON_PRESSED){
+      DB_printf("Drop anchor event received\n");
+    }else if (ThisEvent.EventType == ES_IMU_ORIENTATION_SWITCH && ThisEvent.EventParam == 1) 
+    {
+      //event param of 1 means upside down
+      CurrentState = ChargeMode_s;
+      exitDriveMode_s();
+      enterChargeMode_s();
+      DB_printf("switch from DriveMode to ChargeMode\n");
     }
   }
   break;
   case ChargeMode_s:
   {
-    
+    if(ThisEvent.EventType == ES_IMU_ORIENTATION_SWITCH && ThisEvent.EventParam == 0)
+    {
+      //event param of 0 means right side up
+      CurrentState = DriveMode_s;
+      enterDriveMode_s();
+      DB_printf("switch from ChargeMode to DriveMode\n");
+    }
   }
   break;
   default:{
@@ -271,6 +289,7 @@ static void adjust_7seg(uint8_t digit_input)
   return;
 }
 
+// enter and exit functions of the state machine
 static void enterDriveMode_s(void)
 {
   DB_printf("Entering Drive Mode\n");
@@ -285,3 +304,12 @@ static void exitDriveMode_s(void)
   ES_Timer_StopTimer(JoystickScan_TIMER);
   return;
 }
+
+static void enterChargeMode_s(void)
+{
+  txFrame[status_byte] = charging_status_msg; // update the pairing status byte in txFrame
+  txFrame[joy_x_byte] = jot_stick_neutral_msg; // set joystick values to neutral
+  txFrame[joy_y_byte] = jot_stick_neutral_msg; // set joystick values to neutral
+  return;
+}
+
