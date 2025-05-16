@@ -25,6 +25,7 @@
 #include "ES_Configure.h"
 #include "ES_Framework.h"
 #include "ControllerComm.h"
+#include "controllerFSM.h"
 #include "ES_DeferRecall.h"
 #include "ES_Port.h"
 #include "terminal.h"
@@ -161,7 +162,7 @@ ES_Event_t RunControllerComm(ES_Event_t ThisEvent)
   switch (ThisEvent.EventType) {
     case ES_INIT:
     {
-      ES_Timer_InitTimer(CTRLCOMM_TIMER, ONE_SEC);
+      ES_Timer_InitTimer(CTRLCOMM_TIMER, ONEFIFTH_SEC);
       puts("Service 00:");
       DB_printf("\rES_INIT received in Service %d\r\n", MyPriority);
     }
@@ -178,7 +179,7 @@ ES_Event_t RunControllerComm(ES_Event_t ThisEvent)
         }
         //SendFrame(txFrame, FRAME_LEN);
         // 2. Restart 200ms timer
-        ES_Timer_InitTimer(CTRLCOMM_TIMER, ONE_SEC);
+        ES_Timer_InitTimer(CTRLCOMM_TIMER, ONEFIFTH_SEC);
       }
     break;
   }
@@ -242,10 +243,25 @@ void SetupUART() {
 }
 
 void SendFrame(const uint8_t *frame, uint8_t len) {
-    for (int i = 0; i < len; i++) {
-        while (!U2STAbits.TRMT); // Wait until Transmit Register is empty
-        U2TXREG = frame[i];
-    }
+  // Make a local copy so we can modify it
+  /*
+  uint8_t localFrame[len];  // Ensure large enough buffer
+  for (uint8_t i = 0; i < len; i++) {
+    localFrame[i] = frame[i];
+  }
+  // === Calculate checksum ===
+  uint8_t sum = 0;
+  for (uint8_t i = 3; i < len; i++) {
+    sum += localFrame[i];
+  }
+  localFrame[len - 1] = 0xFF - sum;  // Append checksum at index len
+  */
+  // Send entire frame
+  for (uint8_t i = 0; i < len; i++) {
+    while (!U2STAbits.TRMT); // Wait until Transmit Register is empty
+    U2TXREG = frame[i];
+  }
+  
 }
 
 // TODO: Implement checkSum function? 

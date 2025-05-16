@@ -43,8 +43,10 @@
                    projectFiles="true">
       <itemPath>ProjectHeaders/EventCheckWrapper.h</itemPath>
       <itemPath>ProjectHeaders/EventCheckers.h</itemPath>
-      <itemPath>ProjectHeaders/TestHarnessService0.h</itemPath>
       <itemPath>ProjectHeaders/ControllerComm.h</itemPath>
+      <itemPath>ProjectHeaders/controllerFSM.h</itemPath>
+      <itemPath>ProjectHeaders/PIC32_AD_Lib.h</itemPath>
+      <itemPath>ProjectHeaders/KeyboardService.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -53,10 +55,12 @@
     <logicalFolder name="SourceFiles"
                    displayName="Source Files"
                    projectFiles="true">
-      <itemPath>ProjectSource/EventCheckers.c</itemPath>
-      <itemPath>ProjectSource/TestHarnessService0.c</itemPath>
       <itemPath>ProjectSource/main.c</itemPath>
       <itemPath>ProjectSource/ControllerComm.c</itemPath>
+      <itemPath>ProjectSource/controllerFSM.c</itemPath>
+      <itemPath>ProjectSource/PIC32_AD_Lib.c</itemPath>
+      <itemPath>ProjectSource/KeyboardService.c</itemPath>
+      <itemPath>ProjectSource/EventCheckers.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"

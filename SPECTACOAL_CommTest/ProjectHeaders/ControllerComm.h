@@ -15,8 +15,9 @@
 #include "ES_Port.h"   
 #include "ES_Types.h"
 
+extern uint8_t txFrame[]; 
+extern uint8_t txFrame2[]; 
 // Public Function Prototypes
-
 bool InitControllerComm(uint8_t Priority);
 bool PostControllerComm(ES_Event_t ThisEvent);
 ES_Event_t RunControllerComm(ES_Event_t ThisEvent);
