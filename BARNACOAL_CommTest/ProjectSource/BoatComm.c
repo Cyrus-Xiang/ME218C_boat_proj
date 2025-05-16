@@ -54,12 +54,12 @@ static volatile bool isReceiving = false;
 static volatile bool isPaired = false; 
 
 // Payload variables
-static uint8_t sourceAddressMSB = 0xFF; // rxIndex = 4
-static uint8_t sourceAddressLSB = 0xFF; // rxIndex = 5
-static uint8_t statusByte = 0xFF; // rxIndex = 8
-static uint8_t joystickOneByte = 0xFF; // rxIndex = 9
-static uint8_t joystickTwoByte = 0xFF; // rxIndex = 10
-static uint8_t buttonByte = 0xFF; // rxIndex = 11
+uint8_t sourceAddressMSB = 0xFF; // rxIndex = 4
+uint8_t sourceAddressLSB = 0xFF; // rxIndex = 5
+uint8_t statusByte = 0xFF; // rxIndex = 8
+uint8_t joystickOneByte = 0xFF; // rxIndex = 9
+uint8_t joystickTwoByte = 0xFF; // rxIndex = 10
+uint8_t buttonByte = 0xFF; // rxIndex = 11
 
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
@@ -164,6 +164,11 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
     break;
 
     case Receiving: 
+      if (ThisEvent.EventType == ES_TIMEOUT && ThisEvent.EventParam == BOATCOMM_TIMER)
+      {
+        isPaired == false; // Unpair the boat from current controller
+        //postBoatFSM(ES_UNPAIR); 
+      }
       if (ThisEvent.EventType == ES_PACKET_IN)
       {
         ParseAPIFrame();
@@ -172,7 +177,12 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
         {
           case 0x00: // Driving
           {
-
+            if (isPaired) {
+              // Post 
+            }
+            else {
+              DB_printf("Error: Boat unpaired, invalid command\r\n");
+            }
           }
           break;
 
