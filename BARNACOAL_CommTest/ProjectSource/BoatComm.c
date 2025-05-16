@@ -182,9 +182,9 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
         {
           case 0x00: // Driving
           {
-            DB_printf("Debug 6\r\n");
+            //DB_printf("Debug 6\r\n");
             if (isPaired) {
-              DB_printf("Debug 4\r\n");
+              //DB_printf("Debug 4\r\n");
               ES_Event_t Event2Post;
               Event2Post.EventType = ES_COMMAND;
               PostDrivetrainService(Event2Post);

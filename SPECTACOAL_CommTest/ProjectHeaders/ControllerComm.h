@@ -24,6 +24,6 @@ ES_Event_t RunControllerComm(ES_Event_t ThisEvent);
 
 // Private Function Prototypes
 void SetupUART();
-void SendFrame(const uint8_t *frame, uint8_t len);
+void SendFrame();
 #endif /* ServTemplate_H */
 

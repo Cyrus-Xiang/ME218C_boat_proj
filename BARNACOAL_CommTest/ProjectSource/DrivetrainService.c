@@ -213,14 +213,14 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
 {
   ES_Event_t ReturnEvent;
   ReturnEvent.EventType = ES_NO_EVENT; // assume no errors
-  DB_printf("Debug 1\r\n");
+  //DB_printf("Debug 1\r\n");
   switch (CurrentState)
   {
     case InitPState:       
     {
       if (ThisEvent.EventType == ES_INIT)    // only respond to ES_Init
       {
-        DB_printf("Debug 2\r\n");
+        //DB_printf("Debug 2\r\n");
         CurrentState = Driving;
         // CurrentState = Pairing;
       }
@@ -261,7 +261,7 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
 
     case Driving:  
     {
-      DB_printf("Debug 3\r\n");
+      //DB_printf("Debug 3\r\n");
       switch (ThisEvent.EventType)
       {
         case ES_COMMAND:

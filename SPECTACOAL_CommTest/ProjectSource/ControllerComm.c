@@ -170,6 +170,7 @@ ES_Event_t RunControllerComm(ES_Event_t ThisEvent)
     case ES_TIMEOUT:
       if (ThisEvent.EventParam == CTRLCOMM_TIMER) { 
         // 1. Build and send txFrame
+        /*
         if (counter <= 10) {
           SendFrame(txFrame, FRAME_LEN);
           counter++;
@@ -177,7 +178,8 @@ ES_Event_t RunControllerComm(ES_Event_t ThisEvent)
         else {
           SendFrame(txFrame2, FRAME_LEN);
         }
-        //SendFrame(txFrame, FRAME_LEN);
+        */
+        SendFrame(txFrame, FRAME_LEN);
         // 2. Restart 200ms timer
         ES_Timer_InitTimer(CTRLCOMM_TIMER, ONEFIFTH_SEC);
       }
@@ -242,26 +244,20 @@ void SetupUART() {
   U2MODEbits.ON = 1;
 }
 
-void SendFrame(const uint8_t *frame, uint8_t len) {
+void SendFrame() {
   // Make a local copy so we can modify it
-  /*
-  uint8_t localFrame[len];  // Ensure large enough buffer
-  for (uint8_t i = 0; i < len; i++) {
-    localFrame[i] = frame[i];
-  }
   // === Calculate checksum ===
   uint8_t sum = 0;
-  for (uint8_t i = 3; i < len; i++) {
-    sum += localFrame[i];
+  for (uint8_t i = 3; i < FRAME_LEN - 1; i++) {
+    sum += txFrame[i];
   }
-  localFrame[len - 1] = 0xFF - sum;  // Append checksum at index len
-  */
-  // Send entire frame
-  for (uint8_t i = 0; i < len; i++) {
-    while (!U2STAbits.TRMT); // Wait until Transmit Register is empty
-    U2TXREG = frame[i];
-  }
+  txFrame[FRAME_LEN - 1] = 0xFF - sum;  // Modify checksum at txFrame[12]
   
+  // Send entire frame
+  for (uint8_t i = 0; i < FRAME_LEN; i++) {
+    while (!U2STAbits.TRMT); // Wait until Transmit Register is empty
+    U2TXREG = txFrame[i];
+  }
 }
 
 // TODO: Implement checkSum function? 
