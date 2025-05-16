@@ -15,7 +15,8 @@
 #define pairing_status_msg 0x02
 #define driving_status_msg 0x00
 #define charging_status_msg 0x01
-
+#define max_8bit_value 0xFF
+#define jot_stick_neutral_msg 127
 enum{
 delimiter_byte, length_msb_byte, length_lsb_byte,
 frame_type_byte,frame_id_byte,dst_addr_msb_byte, dst_addr_lsb_byte,

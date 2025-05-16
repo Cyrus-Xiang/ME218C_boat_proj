@@ -141,13 +141,19 @@ ES_Event_t RunKeyboardService(ES_Event_t ThisEvent)
       }
       break;
     case 'c':
-      DB_printf("%d",check_sum_byte);
+      DB_printf("%d\n",check_sum_byte);
       break;
     case 'd':
-
+      Event2Post.EventType = ES_IMU_ORIENTATION_SWITCH;
+      Event2Post.EventParam = 0;
+      PostcontrollerFSM(Event2Post);
+      DB_printf("Keyboard service posts ES_IMU_ORIENTATION_SWITCH with eventparam = 0 to controllerFSM\n");
       break;
     case 'e':
-
+      Event2Post.EventType = ES_IMU_ORIENTATION_SWITCH;
+      Event2Post.EventParam = 1;
+      PostcontrollerFSM(Event2Post);
+      DB_printf("Keyboard service posts ES_IMU_ORIENTATION_SWITCH with eventparam = 1 to controllerFSM\n");
       break;
     case 'f':
       /* code */
