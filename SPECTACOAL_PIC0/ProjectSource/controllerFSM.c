@@ -26,6 +26,7 @@
 #include "ES_Configure.h"
 #include "ES_Framework.h"
 #include "controllerFSM.h"
+#include "ControllerComm.h"
 #include "PIC32_AD_Lib.h"
 #include "dbprintf.h"
 #include <xc.h>
@@ -51,11 +52,12 @@ static controllerState_t CurrentState;
 #define ADC_scan_interval 200
 static uint8_t MyPriority;
 static uint32_t Curr_AD_Val[2];
-static uint8_t boat_selected = 1;
+static uint8_t boat_selected = 6; // default to boat 6
 static uint8_t max_boat_number = 6;
 
 
 const static uint8_t boat_addresses_LSB[6] = {0x86, 0x87, 0x88, 0x89, 0x8A, 0x8B};
+/*
 uint8_t txFrame[] = {
   0x7E,          // Start delimiter
   0x00, 0x09,    // Length (MSB, LSB) = 8 bytes of data after this field
@@ -66,6 +68,7 @@ uint8_t txFrame[] = {
   0x02, 0x00, 0x00, 0x00,// TEST: Pairing: 0x02 (byte 9), 0x00 (byte 10), 0x00 (byte 11), 0x00 (byte 12)
   0x55           // Checksum (computed as 0xFF - sum of bytes after 0x7E)
 };
+*/
 
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
@@ -308,8 +311,8 @@ static void exitDriveMode_s(void)
 static void enterChargeMode_s(void)
 {
   txFrame[status_byte] = charging_status_msg; // update the pairing status byte in txFrame
-  txFrame[joy_x_byte] = jot_stick_neutral_msg; // set joystick values to neutral
-  txFrame[joy_y_byte] = jot_stick_neutral_msg; // set joystick values to neutral
+  //txFrame[joy_x_byte] = jot_stick_neutral_msg; // set joystick values to neutral
+  //txFrame[joy_y_byte] = jot_stick_neutral_msg; // set joystick values to neutral
   return;
 }
 
