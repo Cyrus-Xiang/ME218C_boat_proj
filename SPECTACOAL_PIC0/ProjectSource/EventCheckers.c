@@ -39,7 +39,8 @@
 // include our own prototypes to insure consistency between header &
 // actual functionsdefinition
 #include "EventCheckers.h"
-
+#include "dbprintf.h"
+#include <string.h>
 // This is the event checking function sample. It is not intended to be
 // included in the module. It is only here as a sample to guide you in writing
 // your own event checkers
@@ -108,14 +109,58 @@ bool Check4Lock(void)
 ****************************************************************************/
 bool Check4Keystroke(void)
 {
-  if (IsNewKeyReady())   // new key waiting?
+  if (IsNewKeyReady()) // new key waiting?
   {
     ES_Event_t ThisEvent;
-    ThisEvent.EventType   = ES_NEW_KEY;
-    ThisEvent.EventParam  = GetNewKey();
-    ES_PostAll(ThisEvent);
+    ThisEvent.EventType = ES_NEW_KEY;
+    ThisEvent.EventParam = GetNewKey();
+    PostKeyboardService(ThisEvent);
     return true;
   }
   return false;
 }
 
+bool Check4Buttons()
+{
+#define debounce_time 100
+#define numOfButtons 3
+  bool toReturn = false;
+  volatile uint32_t *port_bit[numOfButtons] = {&PORTA, &PORTB, &PORTB}; // A4, B4, B9
+  static uint32_t PortMasks[numOfButtons] = {1L << 4, 1L << 4, 1L << 9};
+  static ES_EventType_t corresponding_events[numOfButtons] = { ES_CHOOSE_BOAT_BUTTON_PRESSED, ES_PAIR_BUTTON_PRESSED,
+  ES_DROP_COAL_BUTTON_PRESSED, };//events for these buttons
+  static bool button_states_last[numOfButtons] = {0};
+  static bool button_states_curr[numOfButtons] = {0};
+  static uint16_t last_button_down_time[numOfButtons] = {0}; // ES_Timer_GetTime() returns uint16_t
+  static uint16_t time_now = 0;
+
+  // read the buttons and check ups and downs
+  for (int i = 0; i < numOfButtons; i++)
+  {
+    button_states_curr[i] = (*port_bit[i] & PortMasks[i]);
+    // HIGH = button down, LOW = button up
+    // event is posted when the button is released (LOW)
+    if (button_states_curr[i] && !button_states_last[i])
+    {
+      last_button_down_time[i] = ES_Timer_GetTime(); // update the time
+      //DB_printf("Button#%d is down at time %d\n", i,last_button_down_time[i]);
+    }
+    // button event is only possible when the current reading is LOW(released) and previous is HIGH(pressed)
+    else if (!button_states_curr[i] && button_states_last[i])
+    {
+      time_now = ES_Timer_GetTime();
+      //DB_printf("Button#%d is up at time %d\n", i, time_now);
+      if (time_now - last_button_down_time[i] > debounce_time)
+      {
+        DB_printf("Button#%d press event sent to controllerFSM\n", i);
+        ES_Event_t ThisEvent;
+        ThisEvent.EventType = corresponding_events[i];
+        PostcontrollerFSM(ThisEvent);
+        toReturn = true;
+      }
+    }
+  }
+
+  memcpy(button_states_last, button_states_curr, sizeof(button_states_last));
+  return toReturn;
+}
