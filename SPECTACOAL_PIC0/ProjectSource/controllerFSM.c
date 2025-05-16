@@ -37,7 +37,7 @@
 */
 static void config_joystick_ADC(void);
 static void config_buttons(void);
-static void adjust_7seg(size_t digit_input);
+static void adjust_7seg(uint8_t digit_input);
 static void enterDriveMode_s(void);
 static void exitDriveMode_s(void);
 static void enterChargeMode_s(void);
@@ -51,8 +51,22 @@ static controllerState_t CurrentState;
 #define ADC_scan_interval 500
 static uint8_t MyPriority;
 static uint32_t Curr_AD_Val[2];
-static size_t boat_selected = 1;
-static size_t max_boat_number = 6;
+static uint8_t boat_selected = 1;
+static uint8_t max_boat_number = 6;
+
+
+const static uint8_t boat_addresses_LSB[6] = {0x86, 0x87, 0x88, 0x89, 0x8A, 0x8B};
+uint8_t txFrame[] = {
+  0x7E,          // Start delimiter
+  0x00, 0x09,    // Length (MSB, LSB) = 8 bytes of data after this field
+  0x01,          // Frame type = TX (16-bit address)
+  0x00,          // Frame ID (0 = no ACK)
+  0x20, 0x86,    // TEST: Destination address = 0x2086
+  0x01,          // Options = 0x01 to disable ACK
+  0x02, 0x00, 0x00, 0x00,// TEST: Pairing: 0x02 (byte 9), 0x00 (byte 10), 0x00 (byte 11), 0x00 (byte 12)
+  0x55           // Checksum (computed as 0xFF - sum of bytes after 0x7E)
+};
+
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -160,10 +174,16 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
         boat_selected = 1;
       }
       adjust_7seg(boat_selected);
+      // update the boat number in the txFrame
+      txFrame[dst_addr_lsb_byte] = boat_addresses_LSB[boat_selected - 1]; 
+      DB_printf("boat address is locked to %d selected\n", txFrame[dst_addr_lsb_byte]);
+      
     }
     else if (ThisEvent.EventType == ES_PAIR_BUTTON_PRESSED)
     {
-      // post event to pairing state machine
+  
+      // update the pairing status byte in txFrame
+      txFrame[status_byte] = pairing_status_msg;
       DB_printf("start pairing with boart number %d\n", boat_selected);
       CurrentState = Pairing_s;
     }
@@ -245,7 +265,7 @@ static void config_buttons(void)
   return;
 }
 
-static void adjust_7seg(size_t digit_input)
+static void adjust_7seg(uint8_t digit_input)
 {
   DB_printf("7seg is displaying boat number: %d\n", digit_input);
   return;
@@ -255,6 +275,7 @@ static void enterDriveMode_s(void)
 {
   DB_printf("Entering Drive Mode\n");
   ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval);//joystick now is reading values regularly
+  txFrame[status_byte] = driving_status_msg; // update the pairing status byte in txFrame
   return;
 }
 

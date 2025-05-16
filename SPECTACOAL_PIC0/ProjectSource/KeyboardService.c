@@ -24,6 +24,7 @@
 #include "ES_Framework.h"
 #include "KeyboardService.h"
 #include "dbprintf.h"
+#include "controllerFSM.h"
 
 /*----------------------------- Module Defines ----------------------------*/
 
@@ -35,7 +36,7 @@
 /*---------------------------- Module Variables ---------------------------*/
 // with the introduction of Gen2, we need a module level Priority variable
 static uint8_t MyPriority;
-
+extern uint8_t txFrame[]; // frame to send to the boat
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -134,10 +135,13 @@ ES_Event_t RunKeyboardService(ES_Event_t ThisEvent)
       DB_printf("Keyboard service posts ES_BOAT_PAIRED to controllerFSM\n");
       break;
     case 'b':
-
+      for (size_t i = 0; i < 13; i++)
+      {
+        DB_printf("txFrame[%d] = %d\r\n", i, txFrame[i]);
+      }
       break;
     case 'c':
-
+      DB_printf("%d",check_sum_byte);
       break;
     case 'd':
 
