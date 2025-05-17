@@ -122,7 +122,7 @@ bool Check4Keystroke(void)
 
 bool Check4Buttons()
 {
-#define debounce_time 100
+#define debounce_time 70
 #define numOfButtons 3
   bool toReturn = false;
   volatile uint32_t *port_bit[numOfButtons] = {&PORTA, &PORTB, &PORTB}; // A4, B4, B9
