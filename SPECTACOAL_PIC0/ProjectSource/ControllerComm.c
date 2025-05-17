@@ -245,7 +245,6 @@ void SetupUART() {
 }
 
 void SendFrame() {
-  // Make a local copy so we can modify it
   // === Calculate checksum ===
   uint8_t sum = 0;
   for (uint8_t i = 3; i < FRAME_LEN - 1; i++) {

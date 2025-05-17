@@ -262,9 +262,11 @@ typedef enum
   ES_NEW_KEY,               /* signals a new key received from terminal */
   ES_LOCK,
   ES_UNLOCK,
+
+  // BoatComm Events
   ES_PACKET_IN,
 
-  // Boat Events
+  // BoatFSM Events
   ES_PAIRED,
   ES_UNPAIRED,
   ES_COMMAND,
