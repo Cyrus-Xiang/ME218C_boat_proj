@@ -36,9 +36,13 @@
 /* prototypes for private functions for this machine.They should be functions
    relevant to the behavior of this state machine
 */
+static void adjust_7seg(uint8_t digit_input);
+// functions related to configuration
 static void config_joystick_ADC(void);
 static void config_buttons(void);
-static void adjust_7seg(uint8_t digit_input);
+static void config_shift_reg(void);
+
+// functions related to state transitions
 static void enterDriveMode_s(void);
 static void exitDriveMode_s(void);
 static void enterChargeMode_s(void);
@@ -265,7 +269,15 @@ controllerState_t QuerycontrollerFSM(void)
 /***************************************************************************
  private functions
  ***************************************************************************/
-
+static void config_shift_reg(void)
+{
+  // configure the shift register pins
+  TRISAbits.TRISA0 = 0; // SRCLK, 
+  TRISAbits.TRISA1 = 0; // RCLK, latch clock
+  TRISAbits.TRISA2 = 0; // SER
+  
+  return;
+}
 static void config_joystick_ADC(void)
 {
   TRISBbits.TRISB12 = 1;
