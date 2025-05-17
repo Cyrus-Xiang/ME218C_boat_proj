@@ -203,7 +203,7 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
       {
         boat_selected = 1;
       }
-      //adjust_7seg(boat_selected);
+      adjust_7seg(boat_selected);
       // update the boat number in the txFrame
       txFrame[dst_addr_lsb_byte] = boat_addresses_LSB[boat_selected - 1];
       DB_printf("boat address is locked to %d selected\n", txFrame[dst_addr_lsb_byte]);
