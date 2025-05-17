@@ -15,6 +15,7 @@
 #define pairing_status_msg 0x02
 #define driving_status_msg 0x00
 #define charging_status_msg 0x01
+#define joy_stick_neutral_msg 0x00
 
 enum{
 delimiter_byte, length_msb_byte, length_lsb_byte,

@@ -56,11 +56,11 @@ static controllerState_t CurrentState;
 #define ADC_scan_interval 200
 static uint8_t MyPriority;
 static uint32_t Curr_AD_Val[2];
+// variables for the wireless communication
 static uint8_t boat_selected = 6; // default to boat 6
 static uint8_t max_boat_number = 6;
-
-
 const static uint8_t boat_addresses_LSB[6] = {0x86, 0x87, 0x88, 0x89, 0x8A, 0x8B};
+
 /*
 uint8_t txFrame[] = {
   0x7E,          // Start delimiter
@@ -73,7 +73,25 @@ uint8_t txFrame[] = {
   0x55           // Checksum (computed as 0xFF - sum of bytes after 0x7E)
 };
 */
-
+// variables for the 7 seg display
+#define SRCLK_port LATAbits.LATA0 // clock pin for SN74HC595 shift register
+#define RCLK_port LATAbits.LATA1  // latch pin for SN74HC595 shift register
+#define SER_port LATAbits.LATA2   // data pin for SN74HC595 shift register
+#define SHORT_DELAY() asm volatile ("nop; nop; nop; nop")
+// 7-segment patterns (common cathode)
+// a–g, dp: MSB = a, LSB = dp
+const uint8_t seg_table[10] = {
+    0b00111111, // 0
+    0b00000110, // 1
+    0b01011011, // 2
+    0b01001111, // 3
+    0b01100110, // 4
+    0b01101101, // 5
+    0b01111101, // 6
+    0b00000111, // 7
+    0b01111111, // 8
+    0b01101111  // 9
+};
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -103,6 +121,8 @@ bool InitcontrollerFSM(uint8_t Priority)
   // configure pins and ADC for X Y information of joysticks
   config_joystick_ADC();
   config_buttons();
+  config_shift_reg();
+  adjust_7seg(boat_selected); // display 8 on the 7-segment display
   DB_printf("controllerFSM successfully initialized\n");
   // post the initial transition event
   ThisEvent.EventType = ES_INIT;
@@ -183,11 +203,10 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
       {
         boat_selected = 1;
       }
-      adjust_7seg(boat_selected);
+      //adjust_7seg(boat_selected);
       // update the boat number in the txFrame
-      txFrame[dst_addr_lsb_byte] = boat_addresses_LSB[boat_selected - 1]; 
+      txFrame[dst_addr_lsb_byte] = boat_addresses_LSB[boat_selected - 1];
       DB_printf("boat address is locked to %d selected\n", txFrame[dst_addr_lsb_byte]);
-      
     }
     else if (ThisEvent.EventType == ES_PAIR_BUTTON_PRESSED)
     {
@@ -195,14 +214,14 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
       // update the pairing status byte in txFrame
       txFrame[status_byte] = pairing_status_msg;
       DB_printf("start pairing with boart number %d\n", boat_selected);
-      
     }
   }
   break;
 
   case Pairing_s: // If current state is state one
   {
-    if(ThisEvent.EventType == ES_BOAT_PAIRED){
+    if (ThisEvent.EventType == ES_BOAT_PAIRED)
+    {
       CurrentState = DriveMode_s;
       enterDriveMode_s();
       DB_printf("Pairing successful, entering Drive Mode\n");
@@ -211,14 +230,17 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
   break;
   case DriveMode_s:
   {
-   if (ThisEvent.EventType == ES_DROP_COAL_BUTTON_PRESSED)
+    if (ThisEvent.EventType == ES_DROP_COAL_BUTTON_PRESSED)
     {
       DB_printf("Drop coal event received\n");
-    }else if (ThisEvent.EventType == ES_DROP_ANCHOR_BUTTON_PRESSED){
-      DB_printf("Drop anchor event received\n");
-    }else if (ThisEvent.EventType == ES_IMU_ORIENTATION_SWITCH && ThisEvent.EventParam == 1) 
+    }
+    else if (ThisEvent.EventType == ES_DROP_ANCHOR_BUTTON_PRESSED)
     {
-      //event param of 1 means upside down
+      DB_printf("Drop anchor event received\n");
+    }
+    else if (ThisEvent.EventType == ES_IMU_ORIENTATION_SWITCH && ThisEvent.EventParam == 1)
+    {
+      // event param of 1 means upside down
       CurrentState = ChargeMode_s;
       exitDriveMode_s();
       enterChargeMode_s();
@@ -228,16 +250,17 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
   break;
   case ChargeMode_s:
   {
-    if(ThisEvent.EventType == ES_IMU_ORIENTATION_SWITCH && ThisEvent.EventParam == 0)
+    if (ThisEvent.EventType == ES_IMU_ORIENTATION_SWITCH && ThisEvent.EventParam == 0)
     {
-      //event param of 0 means right side up
+      // event param of 0 means right side up
       CurrentState = DriveMode_s;
       enterDriveMode_s();
       DB_printf("switch from ChargeMode to DriveMode\n");
     }
   }
   break;
-  default:{
+  default:
+  {
   }
   break;
   } // end switch on Current State
@@ -272,10 +295,14 @@ controllerState_t QuerycontrollerFSM(void)
 static void config_shift_reg(void)
 {
   // configure the shift register pins
-  TRISAbits.TRISA0 = 0; // SRCLK, 
+  TRISAbits.TRISA0 = 0; // SRCLK,
   TRISAbits.TRISA1 = 0; // RCLK, latch clock
   TRISAbits.TRISA2 = 0; // SER
-  
+  // set the pins to low
+  SRCLK_port = 0;
+  RCLK_port = 0;
+  SER_port = 0;
+
   return;
 }
 static void config_joystick_ADC(void)
@@ -285,7 +312,6 @@ static void config_joystick_ADC(void)
   TRISBbits.TRISB13 = 1;
   ANSELBbits.ANSB13 = 1;
   ADC_ConfigAutoScan(BIT11HI | BIT12HI); // AN11 is for B13. X pos of joystick; AN12 is for B12, Y pos of joystick
-  
 
   return;
 }
@@ -300,6 +326,19 @@ static void config_buttons(void)
 
 static void adjust_7seg(uint8_t digit_input)
 {
+  // convert the digit to the corresponding 7-segment pattern
+  uint8_t data = seg_table[digit_input];
+  RCLK_port = 0; // Disable latch during shifting
+  for (int i = 7; i >= 0; i--)
+  {
+    SRCLK_port = 0;
+    SHORT_DELAY();  // Ensure clock low period
+    SER_port = (data >> i) & 0x01;
+    SHORT_DELAY();
+    SRCLK_port = 1; // Rising edge shifts in bit
+    SHORT_DELAY();
+  }
+  RCLK_port = 1; // Rising edge latches all bits to output
   DB_printf("7seg is displaying boat number: %d\n", digit_input);
   return;
 }
@@ -308,8 +347,8 @@ static void adjust_7seg(uint8_t digit_input)
 static void enterDriveMode_s(void)
 {
   DB_printf("Entering Drive Mode\n");
-  ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval);//joystick now is reading values regularly
-  txFrame[status_byte] = driving_status_msg; // update the pairing status byte in txFrame
+  ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval); // joystick now is reading values regularly
+  txFrame[status_byte] = driving_status_msg;                 // update the pairing status byte in txFrame
   return;
 }
 
@@ -322,9 +361,8 @@ static void exitDriveMode_s(void)
 
 static void enterChargeMode_s(void)
 {
-  txFrame[status_byte] = charging_status_msg; // update the pairing status byte in txFrame
-  //txFrame[joy_x_byte] = jot_stick_neutral_msg; // set joystick values to neutral
-  //txFrame[joy_y_byte] = jot_stick_neutral_msg; // set joystick values to neutral
+  txFrame[status_byte] = charging_status_msg;  // update the pairing status byte in txFrame
+  txFrame[joy_x_byte] = joy_stick_neutral_msg; // set joystick values to neutral
+  txFrame[joy_y_byte] = joy_stick_neutral_msg; // set joystick values to neutral
   return;
 }
-
