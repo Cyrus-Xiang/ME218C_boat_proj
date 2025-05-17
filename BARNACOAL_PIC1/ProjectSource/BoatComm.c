@@ -50,7 +50,6 @@
 #define FRAME_LEN_TX 10
 #define IS_PAIRED 0xFF
 #define NUM_PAIRING_MESSAGE 5
-#define 
 
 static uint8_t txFrame[FRAME_LEN_TX] = {
   0x7E,          // Start delimiter
@@ -228,7 +227,16 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
               PostDrivetrainService(commandEvent);
               PostPowerService(commandEvent);
 
-              // TODO: Handle button messages?
+              // Handle button messages
+              if (buttonByte & (1 << 0)) { // Bit 0 is set, post ES_DUMP
+                ES_Event_t dumpEvent;
+                dumpEvent.EventType = ES_DUMP;
+                PostDrivetrainService(dumpEvent);
+                PostPowerService(dumpEvent);
+              }
+              if (buttonByte & (1 << 1)) { // Bit 1 is set, Do nothing
+                // Since no anchor on our boat, do nothing
+              }
             }
             else {
               // If boat unpaired, ignore packet
@@ -239,11 +247,9 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
 
           case 0x01: // Charging
           {
-            // each received charging packet = 5% charge 
-            // chargeLevel ranges from 0 - 150
             if (isPaired) {
               ES_Event_t chargeEvent;
-              chargeEvent.EventType = ES_CHARGE; //TODO: Discuss ES_CHARGE with Wilson
+              chargeEvent.EventType = ES_CHARGE; 
               PostDrivetrainService(chargeEvent);
               PostPowerService(chargeEvent);
             }

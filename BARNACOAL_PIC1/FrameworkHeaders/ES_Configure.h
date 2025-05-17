@@ -271,8 +271,7 @@ typedef enum
   ES_UNPAIRED,
   ES_COMMAND,
   ES_NOPWR,
-  ES_CHARGING_START,
-  ES_CHARGING_END,
+  ES_CHARGE,
   ES_DUMP
 }ES_EventType_t;
 
