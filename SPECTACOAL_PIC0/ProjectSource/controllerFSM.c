@@ -159,10 +159,11 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
   {
     // read the joystick values
     ADC_MultiRead(Curr_AD_Val);
-    DB_printf("X: %d Y: %d\n", Curr_AD_Val[0], Curr_AD_Val[1]);
+    
     // update the joystick values in the txFrame
     txFrame[joy_x_byte] = (uint8_t)(Curr_AD_Val[0] >> 2); // right shift to get 8 bits (divide by 4)
     txFrame[joy_y_byte] = (uint8_t)(Curr_AD_Val[1] >> 2); // right shift to get 8 bits (divide by 4)
+    DB_printf("joystick X: %d Y: %d\n", txFrame[joy_x_byte], txFrame[joy_y_byte]);
     ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval);
   }
   switch (CurrentState)
