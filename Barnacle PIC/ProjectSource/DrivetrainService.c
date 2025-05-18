@@ -34,7 +34,7 @@
 #include "ES_Configure.h"
 #include "ES_Framework.h"
 #include "dbprintf.h"
-#include "ADService.h"
+// #include "ADService.h"
 #include "PowerService.h"
 
 
