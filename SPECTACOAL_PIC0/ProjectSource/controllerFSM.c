@@ -95,13 +95,14 @@ const uint8_t seg_table[10] = {
 };
 
 // variables for battery(charge) level indication (servo)
+#define OC_channel_4_servo 1
 #define PWM_period_us 20000
-#define low_PW_us 500
+#define PWM_freq 50 // 50Hz
+#define lower_PW_us 500
 #define upper_PW_us 2500
 #define ticks_per_us 2.5
-static uint16_t PW_mid_us;
 static uint16_t PW_range_us;
-static uint16_t PulseWidth;
+static uint16_t PulseWidth_Servo;
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -308,16 +309,16 @@ static void config_charge_indicator(void)
 {
   TRISBbits.TRISB15 = 0; // output for OC1
   ANSELBbits.ANSB15 = 0; // digital pin
-  PWMSetup_BasicConfig(1);
-  PWMSetup_SetPeriodOnTimer(PWM_period_us * ticks_per_us, _Timer2_);
-  DB_printf("PWM period is set to %u ticks \n", PWM_period_us * ticks_per_us);
-  PWMSetup_AssignChannelToTimer(1, _Timer2_);
-  PWMSetup_MapChannelToOutputPin(1, PWM_RPB15);
-  PW_range_us = upper_PW_us - low_PW_us;
-  PW_mid_us = (uint16_t)PW_range_us / 2 + low_PW_us;
-  PulseWidth = low_PW_us * ticks_per_us;
-
-  PWMOperate_SetPulseWidthOnChannel(PulseWidth, 1);
+  PWMSetup_BasicConfig(OC_channel_4_servo);
+  //PWMSetup_SetPeriodOnTimer(PWM_period_us * ticks_per_us, _Timer2_);
+  PWMSetup_SetFreqOnTimer(PWM_freq, _Timer2_); // set the PWM frequency
+  DB_printf("servo PWM frequency is set to %u Hz \n", PWM_freq);
+  PWMSetup_AssignChannelToTimer(OC_channel_4_servo, _Timer2_);
+  PWMSetup_MapChannelToOutputPin(OC_channel_4_servo, PWM_RPB15);
+  PW_range_us = upper_PW_us - lower_PW_us;
+  //set intial charge to 0
+  PulseWidth_Servo = upper_PW_us * ticks_per_us; // upper = leftmost servo position
+  PWMOperate_SetPulseWidthOnChannel(PulseWidth_Servo, OC_channel_4_servo);
   return;
 }
 static void config_shift_reg(void)

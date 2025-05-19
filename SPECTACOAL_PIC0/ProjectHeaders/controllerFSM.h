@@ -26,7 +26,7 @@ status_byte,joy_x_byte,joy_y_byte,buttons_byte,check_sum_byte,
 // State definitions for use with the query function
 typedef enum
 {
-  Idle_s, Pairing_s, DriveMode_s, ChargeMode_s
+  P_init_s, Idle_s, Pairing_s, DriveMode_s, ChargeMode_s
 }controllerState_t;
 
 // Public Function Prototypes
