@@ -47,6 +47,7 @@
       <itemPath>ProjectHeaders/KeyboardService.h</itemPath>
       <itemPath>ProjectHeaders/PIC32_AD_Lib.h</itemPath>
       <itemPath>ProjectHeaders/controllerFSM.h</itemPath>
+      <itemPath>ProjectHeaders/PWM_PIC32.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -61,6 +62,7 @@
       <itemPath>ProjectSource/KeyboardService.c</itemPath>
       <itemPath>ProjectSource/PIC32_AD_Lib.c</itemPath>
       <itemPath>ProjectSource/controllerFSM.c</itemPath>
+      <itemPath>ProjectSource/PWM_PIC32.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"

@@ -15,6 +15,7 @@
 #define pairing_status_msg 0x02
 #define driving_status_msg 0x00
 #define charging_status_msg 0x01
+#define joy_stick_neutral_msg 0x00
 
 enum{
 delimiter_byte, length_msb_byte, length_lsb_byte,
@@ -25,7 +26,7 @@ status_byte,joy_x_byte,joy_y_byte,buttons_byte,check_sum_byte,
 // State definitions for use with the query function
 typedef enum
 {
-  Idle_s, Pairing_s, DriveMode_s, ChargeMode_s
+  P_init_s, Idle_s, Pairing_s, DriveMode_s, ChargeMode_s
 }controllerState_t;
 
 // Public Function Prototypes
