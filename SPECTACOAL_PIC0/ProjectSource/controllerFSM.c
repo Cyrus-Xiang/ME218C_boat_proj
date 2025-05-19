@@ -28,6 +28,7 @@
 #include "controllerFSM.h"
 #include "ControllerComm.h"
 #include "PIC32_AD_Lib.h"
+#include "PWM_PIC32.h"
 #include "dbprintf.h"
 #include <xc.h>
 /*----------------------------- Module Defines ----------------------------*/
@@ -41,7 +42,7 @@ static void adjust_7seg(uint8_t digit_input);
 static void config_joystick_ADC(void);
 static void config_buttons(void);
 static void config_shift_reg(void);
-
+static void config_charge_indicator(void);
 // functions related to state transitions
 static void enterDriveMode_s(void);
 static void exitDriveMode_s(void);
@@ -77,7 +78,7 @@ uint8_t txFrame[] = {
 #define SRCLK_port LATAbits.LATA0 // clock pin for SN74HC595 shift register
 #define RCLK_port LATAbits.LATA1  // latch pin for SN74HC595 shift register
 #define SER_port LATAbits.LATA2   // data pin for SN74HC595 shift register
-#define SHORT_DELAY() asm volatile ("nop; nop; nop; nop")
+#define SHORT_DELAY() asm volatile("nop; nop; nop; nop")
 // 7-segment patterns (common cathode)
 // a–g, dp: MSB = a, LSB = dp
 const uint8_t seg_table[10] = {
@@ -92,6 +93,15 @@ const uint8_t seg_table[10] = {
     0b01111111, // 8
     0b01101111  // 9
 };
+
+// variables for battery(charge) level indication (servo)
+#define PWM_period_us 20000
+#define low_PW_us 500
+#define upper_PW_us 2500
+#define ticks_per_us 2.5
+static uint16_t PW_mid_us;
+static uint16_t PW_range_us;
+static uint16_t PulseWidth;
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -122,6 +132,7 @@ bool InitcontrollerFSM(uint8_t Priority)
   config_joystick_ADC();
   config_buttons();
   config_shift_reg();
+  config_charge_indicator();
   adjust_7seg(boat_selected); // display 8 on the 7-segment display
   DB_printf("controllerFSM successfully initialized\n");
   // post the initial transition event
@@ -183,7 +194,7 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
   {
     // read the joystick values
     ADC_MultiRead(Curr_AD_Val);
-    
+
     // update the joystick values in the txFrame
     txFrame[joy_x_byte] = (uint8_t)(Curr_AD_Val[0] >> 2); // right shift to get 8 bits (divide by 4)
     txFrame[joy_y_byte] = (uint8_t)(Curr_AD_Val[1] >> 2); // right shift to get 8 bits (divide by 4)
@@ -293,6 +304,22 @@ controllerState_t QuerycontrollerFSM(void)
 /***************************************************************************
  private functions
  ***************************************************************************/
+static void config_charge_indicator(void)
+{
+  TRISBbits.TRISB15 = 0; // output for OC1
+  ANSELBbits.ANSB15 = 0; // digital pin
+  PWMSetup_BasicConfig(1);
+  PWMSetup_SetPeriodOnTimer(PWM_period_us * ticks_per_us, _Timer2_);
+  DB_printf("PWM period is set to %u ticks \n", PWM_period_us * ticks_per_us);
+  PWMSetup_AssignChannelToTimer(1, _Timer2_);
+  PWMSetup_MapChannelToOutputPin(1, PWM_RPB15);
+  PW_range_us = upper_PW_us - low_PW_us;
+  PW_mid_us = (uint16_t)PW_range_us / 2 + low_PW_us;
+  PulseWidth = low_PW_us * ticks_per_us;
+
+  PWMOperate_SetPulseWidthOnChannel(PulseWidth, 1);
+  return;
+}
 static void config_shift_reg(void)
 {
   // configure the shift register pins
@@ -333,7 +360,7 @@ static void adjust_7seg(uint8_t digit_input)
   for (int i = 7; i >= 0; i--)
   {
     SRCLK_port = 0;
-    SHORT_DELAY();  // Ensure clock low period
+    SHORT_DELAY(); // Ensure clock low period
     SER_port = (data >> i) & 0x01;
     SHORT_DELAY();
     SRCLK_port = 1; // Rising edge shifts in bit
