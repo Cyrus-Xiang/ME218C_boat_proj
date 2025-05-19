@@ -34,9 +34,9 @@
 #include "ES_Configure.h"
 #include "ES_Framework.h"
 #include "dbprintf.h"
-// #include "ADService.h"
+//#include "ADService.h"
 #include "PowerService.h"
-
+#include "BoatComm.h"
 
 /*----------------------------- Module Defines ----------------------------*/
 #define FREQUENCY_PBCLK 20000000 //20MHz
@@ -73,13 +73,14 @@ static uint8_t MyPriority;
 static uint32_t PR = PERIOD_COUNT;
 
 // parameter for control
-static uint8_t Velocity = 0;
-static uint8_t Omega = 0;
+static uint8_t Velocity = 127;
+static uint8_t Omega = 127;
 static uint8_t ScaledLeft = 127;
 static uint8_t ScaledRight = 127;
 static uint8_t PWMLeft = 50;
 static uint8_t PWMRight = 50;
 static uint8_t Servo_POS = SERVO_CLOSE_POS;
+static uint8_t DumpState = 0;
 
 
 /*------------------------------ Module Code ------------------------------*/
@@ -113,9 +114,11 @@ bool InitDrivetrainService(uint8_t Priority)
   ANSELAbits.ANSA1 = 0;
   TRISAbits.TRISA0 = 0; //set RA0, RA1, RA3 as output for motor control
   TRISAbits.TRISA1 = 0;
+  TRISAbits.TRISA2 = 0;
   TRISAbits.TRISA3 = 0;
   RPA0R = 0b0101; //map RA0, RA1, RA3 to output compare mode 
   RPA1R = 0b0101;
+  RPA2R = 0b0101;
   RPA3R = 0b0101;
   TRISAbits.TRISA4 = 1; //set RA4 as the digital input for direction switch
 
@@ -133,29 +136,36 @@ bool InitDrivetrainService(uint8_t Priority)
   OC1CONbits.ON = 0; //disable OC1, OC2, OC3 for configuration
   OC2CONbits.ON = 0;
   OC3CONbits.ON = 0;
+  OC4CONbits.ON = 0;
   OC1CONbits.OC32 = 0; //set OC1, OC2, OC3 for comparison to 16bit timer source
   OC2CONbits.OC32 = 0; 
   OC3CONbits.OC32 = 0; 
+  OC4CONbits.OC32 = 0;
   OC1CONbits.OCTSEL = 0; //set OC1, OC2, OC3 that Timer2 is the source for OC
   OC2CONbits.OCTSEL = 0; 
   OC3CONbits.OCTSEL = 0; 
+  OC4CONbits.OCTSEL = 0; 
   OC1CONbits.OCM = 0b110; //set PWM mode on OC1, OC2, OC3 and disable fault pin
   OC2CONbits.OCM = 0b110;
   OC3CONbits.OCM = 0b110;
+  OC4CONbits.OCM = 0b110;
 
   //Finish configuration, enable Timer and Output Compare Module
   T2CONbits.ON = 1; //enable Timer2
   OC1CONbits.ON = 1; //enable OC1, OC2, OC3
   OC2CONbits.ON = 1;
   OC3CONbits.ON = 1;
+  OC4CONbits.ON = 1;
 
   //Initialize PWM with zero rotation
   OC1R = PR*PWM_OFF/100;
   OC2R = PR*PWM_OFF/100;
   OC3R = PR;
+  OC4R = PR;
   OC1RS = PR*PWM_OFF/100;
   OC2RS = PR*PWM_OFF/100;
   OC3RS = PR;
+  OC4RS = PR;
   
   CurrentState = InitPState;
   // post the initial transition event
@@ -213,15 +223,14 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
 {
   ES_Event_t ReturnEvent;
   ReturnEvent.EventType = ES_NO_EVENT; // assume no errors
-
   switch (CurrentState)
   {
     case InitPState:       
     {
       if (ThisEvent.EventType == ES_INIT)    // only respond to ES_Init
       {
-        CurrentState = Driving;
-        // CurrentState = Pairing;
+        // CurrentState = Driving;
+        CurrentState = Pairing;
       }
     }
     break;
@@ -260,6 +269,8 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
 
     case Driving:  
     {
+      Velocity = joystickOneByte;
+      Omega = joystickTwoByte;
       switch (ThisEvent.EventType)
       {
         case ES_COMMAND:
@@ -270,11 +281,12 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
 
         case ES_DUMP:
         {
-          if(ThisEvent.EventParam == 1)
+          DumpState = (DumpState + 1) % 2
+          if(DumpState == 1)
           {
             OC3RS = PR*SERVO_OPEN_POS/100;
           }
-          if(ThisEvent.EventParam == 0)
+          if(DumpState == 0)
           {
             OC3RS = PR*SERVO_CLOSE_POS/100;
           }
@@ -294,26 +306,7 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
           CurrentState = Pairing;
         }
         break;
-
-        case ES_TIMEOUT:
-        {
-          if(ThisEvent.EventParam == AD_TIMER)
-          {
-            PWMUpdate(Velocity, Omega);
-            DB_printf("\rPWM update\n");
-            Servo_POS = PORTAbits.RA4;
-            if(Servo_POS == 1)
-            {
-              OC3RS = PR*SERVO_OPEN_POS/100;
-            }
-            if(Servo_POS == 0)
-            {
-              OC3RS = PR*SERVO_CLOSE_POS/100;
-            }
-          }
-        }
-        break;
-
+        
         default:
           break;
       }
@@ -322,7 +315,7 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
 
     default:
       break;
-  }                                   // end switch on Current State
+  }                                  
   return ReturnEvent;
 }
 
@@ -351,11 +344,11 @@ void PWMUpdate(uint8_t Velocity, uint8_t Omega)
     ScaledRight = 0;
   }
   
-  // uint8_t ADControl = GetScaledPotentialValue();
   uint8_t PWMLeft = PWM_MIN + (PWM_MAX - PWM_MIN) * ScaledLeft/255;
   uint8_t PWMRight = PWM_MIN + (PWM_MAX - PWM_MIN) * ScaledRight/255;
   OC1RS = PR * PWMLeft/100;
   OC2RS = PR * PWMRight/100;
+  // DB_printf("PWMRight = %d\r\n", PWMRight);
 }
 
 uint8_t BoundaryCheck(uint8_t Value)
@@ -365,7 +358,7 @@ uint8_t BoundaryCheck(uint8_t Value)
   return Value;
 }
 
-void PairingStateIndicator()
+void PairingStateIndicator(uint16_t Address)
 {
-  
+  OC4RS = PR * (Address - 2080)/8; // 208x with x = 1-6 by protocol
 }
