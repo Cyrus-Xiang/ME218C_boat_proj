@@ -3,7 +3,11 @@
     <type>com.microchip.mplab.nbide.embedded.makeproject</type>
     <configuration>
         <data xmlns="http://www.netbeans.org/ns/make-project/1">
+<<<<<<< HEAD
             <name>BARNACOAL_PIC1</name>
+=======
+            <name>Framework4PIC32_2021</name>
+>>>>>>> 2e7e2f6f3b2838be5da2856e31cd96abbd34ba7c
             <creation-uuid>878724fe-2b46-4e91-9066-f6b662e6d637</creation-uuid>
             <make-project-type>0</make-project-type>
             <c-extensions>c</c-extensions>
