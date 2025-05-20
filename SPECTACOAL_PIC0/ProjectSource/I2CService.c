@@ -30,7 +30,7 @@
 /* prototypes for private functions for this service.They should be functions
    relevant to the behavior of this service
 */
-
+static void configSPI(void);
 /*---------------------------- Module Variables ---------------------------*/
 // with the introduction of Gen2, we need a module level Priority variable
 static uint8_t MyPriority;
@@ -126,7 +126,48 @@ ES_Event_t RunI2CService(ES_Event_t ThisEvent)
 /***************************************************************************
  private functions
  ***************************************************************************/
-
+static void configSPI(void)
+{
+    // Step 0: Disable analog function on all SPI pins
+    ANSELBbits.ANSB14 = 0;
+    // Step 1: Map SPI Outputs to all desired pins
+    TRISBbits.TRISB4 = 0;
+    RPB4R = 0b0011; // Map SS1 to RB4
+    //LATBbits.LATB4 = 1; // Pull SS high
+    TRISBbits.TRISB8 = 0;
+    RPB8R = 0b0011;        // Map SDO to RB8
+    TRISBbits.TRISB14 = 0; // Set SCK1 (RB14) as output
+    // Step 2: Map SDI
+    TRISBbits.TRISB5 = 1; // Input
+    SDI1R = 0b0001;       // Map SDI1 to RB5
+    // Step 3: Disable SPI Module
+    SPI1CONbits.ON = 0;
+    // Step 4: Clear the receive buffer
+    uint8_t dummpy = SPI1BUF;
+    // Step 5: Enable Enhanced Buffer
+    SPI1CONbits.ENHBUF = 0;
+    // Step 6: Set Baudrate
+    SPI1BRG = 1; //10MHz
+    // Step 7: Clear the SPIROV Bit
+    SPI1STATbits.SPIROV = 0;
+    // Step 8: Write desired settings to SPIxCON
+    SPI1CONbits.MSTEN = 1;  // Places in Leader Mode
+    SPI1CONbits.MSSEN = 0; // manual CS control by software
+    SPI1CONbits.CKE = 0;    // Reads on 2nd edge
+    SPI1CONbits.CKP = 1;    // SCK idles high
+    SPI1CONbits.FRMPOL = 0; // CS is active low
+    SPI1CON2bits.AUDEN = 0;
+    SPI1CONbits.MODE16 = 0; // Enable 8 bit transfers
+    SPI1CONbits.MODE32 = 0; 
+    // Step 9: Initialize Interrupts
+    SPI1CONbits.SRXISEL = 0b01; // Interrupt when buffer is full
+    IFS1CLR = _IFS1_SPI1RXIF_MASK;
+    IPC7bits.SPI1IP = 6;
+    IEC1SET = _IEC1_SPI1RXIE_MASK;
+    // Step 10: Enable SPI
+    SPI1CONbits.ON = 1;
+    __builtin_enable_interrupts();
+}
 /*------------------------------- Footnotes -------------------------------*/
 /*------------------------------ End of file ------------------------------*/
 
