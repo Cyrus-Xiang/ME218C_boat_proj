@@ -151,12 +151,13 @@ bool Check4Buttons()
     if (button_states_curr[i] && !button_states_last[i])
     {
       last_button_down_time[i] = ES_Timer_GetTime(); // update the time
+      button_is_NotReleased[i] = true;
       // DB_printf("Button#%d is down at time %d\n", i,last_button_down_time[i]);
     }
     // button event is only possible when the current reading is LOW(released) and previous is HIGH(pressed)
     else if (!button_states_curr[i] && button_states_last[i])
     {
-      button_is_NotReleased[i] = true; // button is released
+      button_is_NotReleased[i] = false; // button is released
       time_now = ES_Timer_GetTime();
       // DB_printf("Button#%d is up at time %d\n", i, time_now);
       if (time_now - last_button_down_time[i] > debounce_time)
@@ -173,7 +174,7 @@ bool Check4Buttons()
       time_now = ES_Timer_GetTime();
       if (button_is_NotReleased[i] &&time_now - last_button_down_time[i] > hold_trigger_threshold)
       {
-        button_is_NotReleased[i] = true; // we do this here because we do not want a burst of events and prints
+        button_is_NotReleased[i] = false; // we do this here because we do not want a burst of events and prints
         DB_printf("Button#%d hold event sent to controllerFSM\n", i);
         ES_Event_t ThisEvent;
         ThisEvent.EventType = corresponding_events_long_press[i];
