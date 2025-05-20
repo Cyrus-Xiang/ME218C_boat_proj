@@ -44,7 +44,7 @@
 #define ONE_SEC 1000
 #define ONEFIFTH_SEC (ONE_SEC / 5)
 #define FRAME_LEN_TX 13
-#define FRAME_LEN_RX 10
+#define FRAME_LEN_RX 13
 #define IS_PAIRED_CHARGE 0xFF
 
 uint8_t txFrame[] = {
@@ -205,7 +205,7 @@ ES_Event_t RunControllerComm(ES_Event_t ThisEvent)
               targetAddressMSB = txFrame[5];
               targetAddressLSB = txFrame[6];
               SendFrame(txFrame, FRAME_LEN_TX);
-              DB_printf("Sent pairing request\r\n");
+              //DB_printf("Sent pairing request\r\n");
               // printTxFrame();
             }
             else {
@@ -219,7 +219,7 @@ ES_Event_t RunControllerComm(ES_Event_t ThisEvent)
         }
         else { // isPaired
           SendFrame(txFrame, FRAME_LEN_TX);
-          DB_printf("Sent Frame\r\n");
+          //DB_printf("Sent Frame\r\n");
         }
         // 2. Restart 200ms timer
         ES_Timer_InitTimer(CTRLCOMM_TIMER, ONEFIFTH_SEC);
