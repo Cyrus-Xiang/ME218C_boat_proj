@@ -210,15 +210,15 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
     if (ThisEvent.EventParam == ServoUpdate_TIMER)
     {
       ES_Timer_InitTimer(ServoUpdate_TIMER, charge_update_interval);
-      DB_printf("charge byte is %d\n", powerByte);
+      //DB_printf("charge byte is %d\n", powerByte);
       if (powerByte <= charge_byte_full)
       {
         PulseWidth_servo_us = upper_PW_us - (float)(powerByte * PW_range_us / charge_byte_full);
         PWMOperate_SetPulseWidthOnChannel(PulseWidth_servo_us * ticks_per_us, OC_channel_4_servo);
-        DB_printf("servo pulse width is set to %u us\n", PulseWidth_servo_us);
+        //DB_printf("servo pulse width is set to %u us\n", PulseWidth_servo_us);
         
       }else {
-        DB_printf("charge byte is out of range so we don't update servo\n");
+        //DB_printf("charge byte is out of range so we don't update servo\n");
       }
     }
   }
