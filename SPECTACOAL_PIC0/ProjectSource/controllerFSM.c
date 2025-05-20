@@ -268,10 +268,12 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
     if (ThisEvent.EventType == ES_DROP_COAL_BUTTON_PRESSED)
     {
       DB_printf("Drop coal event received\n");
+      txFrame[buttons_byte] &= 0b01; // set the drop coal bit
     }
     else if (ThisEvent.EventType == ES_DROP_ANCHOR_BUTTON_PRESSED)
     {
       DB_printf("Drop anchor event received\n");
+      txFrame[buttons_byte] &= 0b10; // set the drop anchor bit
     }
     else if (ThisEvent.EventType == ES_IMU_ORIENTATION_SWITCH && ThisEvent.EventParam == 1)
     {
