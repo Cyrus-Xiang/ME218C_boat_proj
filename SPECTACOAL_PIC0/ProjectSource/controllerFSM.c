@@ -95,6 +95,8 @@ const uint8_t seg_table[10] = {
 };
 
 // variables for battery(charge) level indication (servo)
+#define charge_byte_full 150
+#define charge_update_interval 300 // 300ms
 #define OC_channel_4_servo 1
 #define PWM_period_us 20000
 #define PWM_freq 50 // 50Hz
@@ -102,7 +104,8 @@ const uint8_t seg_table[10] = {
 #define upper_PW_us 2500
 #define ticks_per_us 2.5
 static uint16_t PW_range_us;
-static uint16_t PulseWidth_Servo;
+static uint16_t PulseWidth_servo_us;
+extern uint8_t powerByte; //set in comm service
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -191,17 +194,34 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
 {
   ES_Event_t ReturnEvent;
   ReturnEvent.EventType = ES_NO_EVENT; // assume no errors
-  if (ThisEvent.EventType == ES_TIMEOUT && ThisEvent.EventParam == JoystickScan_TIMER)
+  // executed regardless of the state
+  if (ThisEvent.EventType == ES_TIMEOUT)
   {
-    // read the joystick values
-    ADC_MultiRead(Curr_AD_Val);
-
-    // update the joystick values in the txFrame
-    txFrame[joy_x_byte] = (uint8_t)(Curr_AD_Val[0] >> 2); // right shift to get 8 bits (divide by 4)
-    txFrame[joy_y_byte] = (uint8_t)(Curr_AD_Val[1] >> 2); // right shift to get 8 bits (divide by 4)
-    //DB_printf("joystick X: %d Y: %d\n", txFrame[joy_x_byte], txFrame[joy_y_byte]);
-    ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval);
+    if (ThisEvent.EventParam == JoystickScan_TIMER)
+    {
+      // read the joystick values
+      ADC_MultiRead(Curr_AD_Val);
+      // update the joystick values in the txFrame
+      txFrame[joy_x_byte] = (uint8_t)(Curr_AD_Val[0] >> 2); // right shift to get 8 bits (divide by 4)
+      txFrame[joy_y_byte] = (uint8_t)(Curr_AD_Val[1] >> 2); // right shift to get 8 bits (divide by 4)
+      DB_printf("joystick X: %d Y: %d\n", txFrame[joy_x_byte], txFrame[joy_y_byte]);
+      ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval);
+    }
+    if (ThisEvent.EventParam == ServoUpdate_TIMER)
+    {
+      DB_printf("charge byte is %d\n", powerByte);
+      if (powerByte <= charge_byte_full)
+      {
+        PulseWidth_servo_us = upper_PW_us - (float)(powerByte * PW_range_us / charge_byte_full);
+        PWMOperate_SetPulseWidthOnChannel(PulseWidth_servo_us * ticks_per_us, OC_channel_4_servo);
+        DB_printf("servo pulse width is set to %u us\n", PulseWidth_servo_us);
+        ES_Timer_InitTimer(ServoUpdate_TIMER, charge_update_interval);
+      }else {
+        DB_printf("charge byte is out of range so we don't update servo\n");
+      }
+    }
   }
+
   switch (CurrentState)
   {
   case Idle_s:
@@ -311,15 +331,16 @@ static void config_charge_indicator(void)
   TRISBbits.TRISB15 = 0; // output for OC1
   ANSELBbits.ANSB15 = 0; // digital pin
   PWMSetup_BasicConfig(OC_channel_4_servo);
-  //PWMSetup_SetPeriodOnTimer(PWM_period_us * ticks_per_us, _Timer2_);
+  // PWMSetup_SetPeriodOnTimer(PWM_period_us * ticks_per_us, _Timer2_);
   PWMSetup_SetFreqOnTimer(PWM_freq, _Timer2_); // set the PWM frequency
   DB_printf("servo PWM frequency is set to %u Hz \n", PWM_freq);
   PWMSetup_AssignChannelToTimer(OC_channel_4_servo, _Timer2_);
   PWMSetup_MapChannelToOutputPin(OC_channel_4_servo, PWM_RPB15);
   PW_range_us = upper_PW_us - lower_PW_us;
-  //set intial charge to 0
-  PulseWidth_Servo = upper_PW_us * ticks_per_us; // upper = leftmost servo position
-  PWMOperate_SetPulseWidthOnChannel(PulseWidth_Servo, OC_channel_4_servo);
+  // set intial charge to 0
+  PulseWidth_servo_us = upper_PW_us; // upper = leftmost servo position
+  PWMOperate_SetPulseWidthOnChannel(PulseWidth_servo_us * ticks_per_us, OC_channel_4_servo);
+  ES_Timer_InitTimer(ServoUpdate_TIMER, charge_update_interval);
   return;
 }
 static void config_shift_reg(void)
