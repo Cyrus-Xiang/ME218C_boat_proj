@@ -58,7 +58,7 @@ static controllerState_t CurrentState;
 static uint8_t MyPriority;
 static uint32_t Curr_AD_Val[2];
 // variables for the wireless communication
-static uint8_t boat_selected = 6; // default to boat 6
+static uint8_t boat_selected = 5; // default to boat 6
 static uint8_t max_boat_number = 6;
 const static uint8_t boat_addresses_LSB[6] = {0x81, 0x82, 0x83, 0x84, 0x85, 0x86};
 
@@ -137,7 +137,7 @@ bool InitcontrollerFSM(uint8_t Priority)
   config_buttons();
   config_shift_reg();
   config_charge_indicator();
-  adjust_7seg(boat_selected); // display 8 on the 7-segment display
+  adjust_7seg(0); // display 8 on the 7-segment display
   DB_printf("controllerFSM successfully initialized\n");
   // post the initial transition event
   ThisEvent.EventType = ES_INIT;
@@ -209,13 +209,14 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
     }
     if (ThisEvent.EventParam == ServoUpdate_TIMER)
     {
+      ES_Timer_InitTimer(ServoUpdate_TIMER, charge_update_interval);
       DB_printf("charge byte is %d\n", powerByte);
       if (powerByte <= charge_byte_full)
       {
         PulseWidth_servo_us = upper_PW_us - (float)(powerByte * PW_range_us / charge_byte_full);
         PWMOperate_SetPulseWidthOnChannel(PulseWidth_servo_us * ticks_per_us, OC_channel_4_servo);
         DB_printf("servo pulse width is set to %u us\n", PulseWidth_servo_us);
-        ES_Timer_InitTimer(ServoUpdate_TIMER, charge_update_interval);
+        
       }else {
         DB_printf("charge byte is out of range so we don't update servo\n");
       }
