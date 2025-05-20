@@ -77,7 +77,9 @@ uint8_t txFrame[] = {
 
 // Module variables
 static bool isPaired = false;
-static uint8_t counter = 0; 
+static bool hasAnchorMSGSent = false;
+static bool hasDumpMSGSent = false;
+static uint8_t buttonMSGCounter = 0; 
 static uint8_t MyPriority;
 
 // Variables For Receiving
@@ -218,6 +220,13 @@ ES_Event_t RunControllerComm(ES_Event_t ThisEvent)
           }
         }
         else { // isPaired
+          if (txFrame[11] != 0x00) {
+            // Either anchor/dump button pressed, or both.
+            if (!isbuttonPressed) { //hasn't sent
+              
+            }
+            
+          }
           SendFrame(txFrame, FRAME_LEN_TX);
           //DB_printf("Sent Frame\r\n");
         }
