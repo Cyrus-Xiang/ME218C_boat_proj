@@ -75,13 +75,14 @@ uint8_t txFrame[] = {
 };
 */
 // variables for the 7 seg display
+#define seven_seg_flash_duration 500
 #define SRCLK_port LATAbits.LATA0 // clock pin for SN74HC595 shift register
 #define RCLK_port LATAbits.LATA1  // latch pin for SN74HC595 shift register
 #define SER_port LATAbits.LATA2   // data pin for SN74HC595 shift register
 #define SHORT_DELAY() asm volatile("nop; nop; nop; nop")
 // 7-segment patterns (common cathode)
 // a–g, dp: MSB = a, LSB = dp
-const uint8_t seg_table[10] = {
+const uint8_t seg_table[11] = {
     0b00111111, // 0
     0b00000110, // 1
     0b01011011, // 2
@@ -91,7 +92,8 @@ const uint8_t seg_table[10] = {
     0b01111101, // 6
     0b00000111, // 7
     0b01111111, // 8
-    0b01101111  // 9
+    0b01101111,  // 9
+    0b00000000, // 10 means no display
 };
 
 // variables for battery(charge) level indication (servo)
@@ -137,7 +139,8 @@ bool InitcontrollerFSM(uint8_t Priority)
   config_buttons();
   config_shift_reg();
   config_charge_indicator();
-  adjust_7seg(0); // display 8 on the 7-segment display
+  adjust_7seg(0); // display 0 on the 7-segment display to indicate no boat selected
+  ES_Timer_InitTimer(sevenSeg_flash_TIMER, seven_seg_flash_duration); // set the timer for 100ms
   DB_printf("controllerFSM successfully initialized\n");
   // post the initial transition event
   ThisEvent.EventType = ES_INIT;
@@ -237,7 +240,6 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
       {
         boat_selected = 1;
       }
-      adjust_7seg(boat_selected);
       // update the boat number in the txFrame
       txFrame[dst_addr_msb_byte] = boat_addresses_MSB; 
       txFrame[dst_addr_lsb_byte] = boat_addresses_LSB[boat_selected - 1];
@@ -248,7 +250,24 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
       CurrentState = Pairing_s;
       // update the pairing status byte in txFrame
       txFrame[status_byte] = pairing_status_msg;
+      // make sure the 7 segment is displaying the right boat number
+      adjust_7seg(boat_selected);
+      ES_Timer_StopTimer(sevenSeg_flash_TIMER); // stop the flashing
       DB_printf("start pairing with boart number %d\n", boat_selected);
+    } else if (ThisEvent.EventType == ES_TIMEOUT && ThisEvent.EventParam == sevenSeg_flash_TIMER)
+    {
+      static bool seven_seg_ON = true;
+      ES_Timer_InitTimer(sevenSeg_flash_TIMER, seven_seg_flash_duration); 
+      if (!seven_seg_ON)
+      {
+        adjust_7seg(boat_selected);
+        seven_seg_ON = false;
+      }
+      else
+      {
+        adjust_7seg(10); //10 means no display
+        seven_seg_ON = true;
+      }
     }
   }
   break;
