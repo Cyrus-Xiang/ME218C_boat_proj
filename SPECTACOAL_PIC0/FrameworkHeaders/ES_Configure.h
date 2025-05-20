@@ -33,7 +33,7 @@
 /****************************************************************************/
 // This macro determines that nuber of services that are *actually* used in
 // a particular application. It will vary in value from 1 to MAX_NUM_SERVICES
-#define NUM_SERVICES 3
+#define NUM_SERVICES 4
 
 /****************************************************************************/
 // These are the definitions for Service 0, the lowest priority service.
@@ -83,11 +83,11 @@
 // These are the definitions for Service 3
 #if NUM_SERVICES > 3
 // the header file with the public function prototypes
-#define SERV_3_HEADER "KeyboardService.h"
+#define SERV_3_HEADER "IMUService.h"
 // the name of the Init function
-#define SERV_3_INIT InitKeyboardService
+#define SERV_3_INIT InitIMUService
 // the name of the run function
-#define SERV_3_RUN RunKeyboardService
+#define SERV_3_RUN RunIMUService
 // How big should this services Queue be?
 #define SERV_3_QUEUE_SIZE 3
 #endif

@@ -105,7 +105,7 @@ const uint8_t seg_table[10] = {
 #define ticks_per_us 2.5
 static uint16_t PW_range_us;
 static uint16_t PulseWidth_servo_us;
-extern uint8_t powerByte; //set in comm service
+static uint8_t powerByte = 0; //set in comm service //TODO: change this after merge
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -204,20 +204,20 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
       // update the joystick values in the txFrame
       txFrame[joy_x_byte] = (uint8_t)(Curr_AD_Val[0] >> 2); // right shift to get 8 bits (divide by 4)
       txFrame[joy_y_byte] = (uint8_t)(Curr_AD_Val[1] >> 2); // right shift to get 8 bits (divide by 4)
-      DB_printf("joystick X: %d Y: %d\n", txFrame[joy_x_byte], txFrame[joy_y_byte]);
+      //DB_printf("joystick X: %d Y: %d\n", txFrame[joy_x_byte], txFrame[joy_y_byte]);
       ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval);
     }
     if (ThisEvent.EventParam == ServoUpdate_TIMER)
     {
-      DB_printf("charge byte is %d\n", powerByte);
+      //DB_printf("charge byte is %d\n", powerByte);
       if (powerByte <= charge_byte_full)
       {
         PulseWidth_servo_us = upper_PW_us - (float)(powerByte * PW_range_us / charge_byte_full);
         PWMOperate_SetPulseWidthOnChannel(PulseWidth_servo_us * ticks_per_us, OC_channel_4_servo);
-        DB_printf("servo pulse width is set to %u us\n", PulseWidth_servo_us);
+        //DB_printf("servo pulse width is set to %u us\n", PulseWidth_servo_us);
         ES_Timer_InitTimer(ServoUpdate_TIMER, charge_update_interval);
       }else {
-        DB_printf("charge byte is out of range so we don't update servo\n");
+        //DB_printf("charge byte is out of range so we don't update servo\n");
       }
     }
   }

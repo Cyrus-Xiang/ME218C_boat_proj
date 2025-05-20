@@ -23,18 +23,24 @@
 #include "ES_Configure.h"
 #include "ES_Framework.h"
 #include "IMUService.h"
-
+#include "terminal.h"
+#include "dbprintf.h"
+#include <sys/attribs.h>
+#include <xc.h>
+#include "ControllerComm.h"
+#include "controllerFSM.h"
 /*----------------------------- Module Defines ----------------------------*/
 
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this service.They should be functions
    relevant to the behavior of this service
 */
-
+static void configSPI(void);
 /*---------------------------- Module Variables ---------------------------*/
 // with the introduction of Gen2, we need a module level Priority variable
 static uint8_t MyPriority;
-
+#define pbclk 20000000 // 20MHz
+static uint32_t SPI_freq;
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -62,6 +68,8 @@ bool InitIMUService(uint8_t Priority)
   /********************************************
    in here you write your initialization code
    *******************************************/
+    configSPI();
+
   // post the initial transition event
   ThisEvent.EventType = ES_INIT;
   if (ES_PostToService(MyPriority, ThisEvent) == true)
@@ -126,7 +134,46 @@ ES_Event_t RunIMUService(ES_Event_t ThisEvent)
 /***************************************************************************
  private functions
  ***************************************************************************/
-
+static void configSPI(void)
+{
+    // Step 0: TRIS and ANSEL and mapping
+    // B14 is SPI clock
+    ANSELBbits.ANSB14 = 0; 
+    TRISBbits.TRISB14 = 0; 
+    // A3 is CS pin
+    TRISAbits.TRISA3 = 0; 
+    LATAbits.LATA3 = 1; // Deassert CS
+    // B5 is SDI
+    TRISBbits.TRISB5 = 1;
+    SDI1R = 0b0001;       // Map SDI1 to RB5
+    // B8 is SDO
+    TRISBbits.TRISB8 = 0;
+    RPB8R = 0b0011;        // Map SDO to RB8
+    // Step 1: Disable SPI Module
+    SPI1CONbits.ON = 0;
+    // Step 2: Clear the receive buffer by reading it
+    uint8_t dummy = SPI1BUF;
+    // Step 3: Enable Enhanced Buffer
+    SPI1CONbits.ENHBUF = 0;
+    // Step 4: Set Baudrate
+    SPI1BRG = 1; //for 5MHz SPI freq we use SPI1BRG = 1
+    SPI_freq = pbclk / (2 * (SPI1BRG + 1)); // SPI clock frequency
+    DB_printf("SPI clock frequency: %d\r\n", SPI_freq);
+    // Step 5: Clear the SPIROV Bit
+    SPI1STATbits.SPIROV = 0;
+    // Step 6: Write desired settings to SPIxCON
+    SPI1CONbits.MSTEN = 1;  // Places in Leader Mode
+    SPI1CONbits.MSSEN = 0; // manual CS control by software
+    SPI1CONbits.CKE = 0;    // Reads on 2nd edge
+    SPI1CONbits.CKP = 1;    // SCK idles high
+    SPI1CONbits.FRMPOL = 0; // CS is active low 
+    SPI1CON2bits.AUDEN = 0; //might need to delete this line
+    SPI1CONbits.MODE16 = 0; // Enable 8 bit transfers
+    SPI1CONbits.MODE32 = 0; 
+    // Step 7: Enable SPI
+    SPI1CONbits.ON = 1;
+    __builtin_enable_interrupts();
+}
 /*------------------------------- Footnotes -------------------------------*/
 /*------------------------------ End of file ------------------------------*/
 
