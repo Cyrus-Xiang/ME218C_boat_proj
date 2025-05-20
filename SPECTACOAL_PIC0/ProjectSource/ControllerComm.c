@@ -58,6 +58,23 @@ uint8_t txFrame[] = {
   0x00           // Checksum (computed as 0xFF - sum of bytes after 0x7E)
 };
 
+/******DEBUG*******/
+/*
+126
+0
+9
+1
+0
+255 (should be 32 later)
+255 (should be 129-134)
+1
+0
+0
+0
+0
+0
+*/
+
 // Module variables
 static bool isPaired = false;
 static uint8_t counter = 0; 
@@ -71,10 +88,10 @@ static volatile uint16_t expectedLength = 0;
 static volatile bool isReceiving = false;
 
 // Payload variables
-uint8_t targetAddressMSB = 0xFF; // Modified based on input from ControllerFSM.c
-uint8_t targetAddressLSB = 0xFF; // Modified based on input from ControllerFSM.c
-uint8_t sourceAddressMSB = 0xFF; // Modified based on incoming packet from boat
-uint8_t sourceAddressLSB = 0xFF; // Modified based on incoming packet from boat
+static uint8_t targetAddressMSB = 0xFF; // Modified based on input from ControllerFSM.c
+static uint8_t targetAddressLSB = 0xFF; // Modified based on input from ControllerFSM.c
+static uint8_t sourceAddressMSB = 0xFF; // Modified based on incoming packet from boat
+static uint8_t sourceAddressLSB = 0xFF; // Modified based on incoming packet from boat
 uint8_t powerByte = 0x00; // default to charge 0
 
 
@@ -179,13 +196,30 @@ ES_Event_t RunControllerComm(ES_Event_t ThisEvent)
     case ES_TIMEOUT:
       if (ThisEvent.EventParam == CTRLCOMM_TIMER) { 
         // 1. Build and send txFrame if targetAddress has been modified
-        if (txFrame[5] != 0xFF && txFrame[6] != 0xFF) {
-          targetAddressMSB = txFrame[5];
-          targetAddressLSB = txFrame[6];
-          SendFrame(txFrame, FRAME_LEN_TX);
+        //printTxFrame();
+        if (!isPaired) {
+          if (txFrame[5] != 0xFF && txFrame[6] != 0xFF) {
+            // User has selected the boat, but hasn't pressed 'sent' button
+            if (txFrame[8] == STATUS_PAIRING) {
+              // User pressed 'sent' button, keep sending pairing request
+              targetAddressMSB = txFrame[5];
+              targetAddressLSB = txFrame[6];
+              SendFrame(txFrame, FRAME_LEN_TX);
+              DB_printf("Sent pairing request\r\n");
+              // printTxFrame();
+            }
+            else {
+              // Wait until user press 'sent' button
+              // Ignore commands except pairing 
+            }
+          }
+          else {
+            // User hasn't select boat to pair to
+          }
         }
-        else {
-          // User hasn't select boat to pair to, don't sendFrame yet
+        else { // isPaired
+          SendFrame(txFrame, FRAME_LEN_TX);
+          DB_printf("Sent Frame\r\n");
         }
         // 2. Restart 200ms timer
         ES_Timer_InitTimer(CTRLCOMM_TIMER, ONEFIFTH_SEC);
@@ -193,6 +227,9 @@ ES_Event_t RunControllerComm(ES_Event_t ThisEvent)
     break;
     case ES_PACKET_IN: // Received packet from Boat
       ParseAPIFrame(); // Sanity check and update sourceAddress and powerByte
+      //DB_printf("\rsourceAddressMSB = %d\r\n", sourceAddressMSB);
+      //DB_printf("\rsourceAddressLSB = %d\r\n", sourceAddressLSB);
+      DB_printf("\rpowerByte = %d\r\n", powerByte);
       if (isPaired) {
         DB_printf("Received a packet from boat\r\n");
         // No further action required, controllerFSM will read updated powerByte by itself
@@ -401,7 +438,11 @@ void SendFrame() {
   }
 }
 
-// TODO: Implement checkSum function? 
+void printTxFrame() {
+  for (uint8_t i = 0; i < FRAME_LEN_TX; i++) {
+    DB_printf("txFrame[i] = %d\r\n", txFrame[i]);
+  }
+}
 /*------------------------------- Footnotes -------------------------------*/
 /*------------------------------ End of file ------------------------------*/
 

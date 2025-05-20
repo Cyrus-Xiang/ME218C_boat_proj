@@ -226,6 +226,7 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
               commandEvent.EventType = ES_COMMAND;
               PostDrivetrainService(commandEvent);
               PostPowerService(commandEvent);
+              DB_printf("Post ES_COMMAND to BoatFSMs\r\n");
 
               // Handle button messages
               if (buttonByte & (1 << 0)) { // Bit 0 is set, post ES_DUMP
@@ -233,6 +234,7 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
                 dumpEvent.EventType = ES_DUMP;
                 PostDrivetrainService(dumpEvent);
                 PostPowerService(dumpEvent);
+                DB_printf("Post ES_DUMP to BoatFSMs\r\n");
               }
               if (buttonByte & (1 << 1)) { // Bit 1 is set, Do nothing
                 // Since no anchor on our boat, do nothing
@@ -268,7 +270,7 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
               ES_Event_t pairEvent;
               pairEvent.EventType = ES_PAIRED;
               // sourceAddressMSB and sourceAddressLSB are directly accessible at boatFSMs
-              PostDrivetrainFSM(pairEvent); // Post an event to BoatComm FSM
+              PostDrivetrainService(pairEvent); // Post an event to BoatComm FSM
               PostPowerService(pairEvent);
             }
             else {
@@ -366,7 +368,7 @@ void SetupUART() {
 void __ISR(_UART_2_VECTOR, IPL7SOFT) U2RxISR(void)
 {
   rxByte = U2RXREG; // Read U2RX register into Message
-  //DB_printf("rxByte = %d\r\n", rxByte);
+  // DB_printf("rxByte = %d\r\n", rxByte);
   ProcessUARTByte(rxByte); // Pass byte to byte-level decoder
   IFS1CLR = _IFS1_U2RXIF_MASK; // Clear Rx interrupt flag
 }

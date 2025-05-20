@@ -13,7 +13,7 @@
 #include "ES_Types.h"     /* gets bool type for returns */
 #include "ES_Events.h"
 
-extern uint8_t Power
+extern uint8_t Power;
 // typedefs for the states
 // State definitions for use with the query function
 typedef enum

@@ -60,7 +60,7 @@ static uint32_t Curr_AD_Val[2];
 // variables for the wireless communication
 static uint8_t boat_selected = 6; // default to boat 6
 static uint8_t max_boat_number = 6;
-const static uint8_t boat_addresses_LSB[6] = {0x86, 0x87, 0x88, 0x89, 0x8A, 0x8B};
+const static uint8_t boat_addresses_LSB[6] = {0x81, 0x82, =0x83, 0x84, 0x85, 0x86};
 
 /*
 uint8_t txFrame[] = {
@@ -218,6 +218,7 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
       }
       adjust_7seg(boat_selected);
       // update the boat number in the txFrame
+      txFrame[dst_addr_msb_byte] = boat_addresses_MSB; 
       txFrame[dst_addr_lsb_byte] = boat_addresses_LSB[boat_selected - 1];
       DB_printf("boat address is locked to %d selected\n", txFrame[dst_addr_lsb_byte]);
     }
