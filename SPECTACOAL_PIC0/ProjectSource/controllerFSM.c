@@ -261,12 +261,12 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
       if (!seven_seg_ON)
       {
         adjust_7seg(boat_selected);
-        seven_seg_ON = false;
+        seven_seg_ON = true;
       }
       else
       {
         adjust_7seg(10); //10 means no display
-        seven_seg_ON = true;
+        seven_seg_ON = false;
       }
     }
   }
