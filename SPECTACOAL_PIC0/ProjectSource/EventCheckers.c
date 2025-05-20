@@ -124,7 +124,7 @@ bool Check4Buttons()
 {
 #define debounce_time 70
 #define numOfButtons 3
-#define hold_trigger_threshold 2000
+#define hold_trigger_threshold 1500
   bool toReturn = false;
   volatile uint32_t *port_bit[numOfButtons] = {&PORTA, &PORTB, &PORTB}; // A4, B4, B9
   static uint32_t PortMasks[numOfButtons] = {1L << 4, 1L << 4, 1L << 9};
@@ -160,7 +160,7 @@ bool Check4Buttons()
       button_is_NotReleased[i] = false; // button is released
       time_now = ES_Timer_GetTime();
       // DB_printf("Button#%d is up at time %d\n", i, time_now);
-      if (time_now - last_button_down_time[i] > debounce_time)
+      if (time_now - last_button_down_time[i] > debounce_time && time_now - last_button_down_time[i] < hold_trigger_threshold)
       {
         DB_printf("Button#%d press event sent to controllerFSM\n", i);
         ES_Event_t ThisEvent;

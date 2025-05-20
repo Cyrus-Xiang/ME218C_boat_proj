@@ -258,6 +258,9 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
     {
       static bool seven_seg_ON = true;
       ES_Timer_InitTimer(sevenSeg_flash_TIMER, seven_seg_flash_duration); 
+      // ensure that the boat number displayed is actually written into txFrame
+      txFrame[dst_addr_msb_byte] = boat_addresses_MSB; 
+      txFrame[dst_addr_lsb_byte] = boat_addresses_LSB[boat_selected - 1];
       if (!seven_seg_ON)
       {
         adjust_7seg(boat_selected);
