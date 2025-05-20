@@ -139,7 +139,7 @@ bool InitcontrollerFSM(uint8_t Priority)
   config_buttons();
   config_shift_reg();
   config_charge_indicator();
-  adjust_7seg(0); // display 8 on the 7-segment display
+  adjust_7seg(0); // display 0 on the 7-segment display to indicate no boat selected
   ES_Timer_InitTimer(sevenSeg_flash_TIMER, seven_seg_flash_duration); // set the timer for 100ms
   DB_printf("controllerFSM successfully initialized\n");
   // post the initial transition event
@@ -207,7 +207,7 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
       // update the joystick values in the txFrame
       txFrame[joy_x_byte] = (uint8_t)(Curr_AD_Val[0] >> 2); // right shift to get 8 bits (divide by 4)
       txFrame[joy_y_byte] = (uint8_t)(Curr_AD_Val[1] >> 2); // right shift to get 8 bits (divide by 4)
-      DB_printf("joystick X: %d Y: %d\n", txFrame[joy_x_byte], txFrame[joy_y_byte]);
+      //DB_printf("joystick X: %d Y: %d\n", txFrame[joy_x_byte], txFrame[joy_y_byte]);
       ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval);
     }
     if (ThisEvent.EventParam == ServoUpdate_TIMER)
