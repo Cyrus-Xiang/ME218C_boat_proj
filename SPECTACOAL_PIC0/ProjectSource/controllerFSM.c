@@ -243,7 +243,7 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
       // update the boat number in the txFrame
       txFrame[dst_addr_msb_byte] = boat_addresses_MSB; 
       txFrame[dst_addr_lsb_byte] = boat_addresses_LSB[boat_selected - 1];
-      DB_printf("boat address is locked to %d selected\n", txFrame[dst_addr_lsb_byte]);
+      DB_printf("boat address is locked to %d selected, which is boat %d\n", txFrame[dst_addr_lsb_byte], boat_selected);
     }
     else if (ThisEvent.EventType == ES_PAIR_BUTTON_PRESSED)
     {
@@ -415,7 +415,7 @@ static void adjust_7seg(uint8_t digit_input)
     SHORT_DELAY();
   }
   RCLK_port = 1; // Rising edge latches all bits to output
-  DB_printf("7seg is displaying boat number: %d\n", digit_input);
+  //DB_printf("7seg is displaying boat number: %d\n", digit_input);
   return;
 }
 

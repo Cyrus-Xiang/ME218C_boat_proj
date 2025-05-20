@@ -222,9 +222,9 @@ ES_Event_t RunControllerComm(ES_Event_t ThisEvent)
         else { // isPaired
           if (txFrame[11] != 0x00) {
             // Either anchor/dump button pressed, or both.
-            if (!isbuttonPressed) { //hasn't sent
-              
-            }
+//            if (!isbuttonPressed) { //hasn't sent
+//              
+//            }
             
           }
           SendFrame(txFrame, FRAME_LEN_TX);
