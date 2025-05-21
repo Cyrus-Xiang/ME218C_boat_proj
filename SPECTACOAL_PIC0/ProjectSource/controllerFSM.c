@@ -28,6 +28,7 @@
 #include "controllerFSM.h"
 #include "ControllerComm.h"
 #include "PIC32_AD_Lib.h"
+#include "PWM_PIC32.h"
 #include "dbprintf.h"
 #include <xc.h>
 /*----------------------------- Module Defines ----------------------------*/
@@ -41,7 +42,7 @@ static void adjust_7seg(uint8_t digit_input);
 static void config_joystick_ADC(void);
 static void config_buttons(void);
 static void config_shift_reg(void);
-
+static void config_charge_indicator(void);
 // functions related to state transitions
 static void enterDriveMode_s(void);
 static void exitDriveMode_s(void);
@@ -57,9 +58,9 @@ static controllerState_t CurrentState;
 static uint8_t MyPriority;
 static uint32_t Curr_AD_Val[2];
 // variables for the wireless communication
-static uint8_t boat_selected = 6; // default to boat 6
+static uint8_t boat_selected = 5; // default to boat 6
 static uint8_t max_boat_number = 6;
-const static uint8_t boat_addresses_LSB[6] = {0x86, 0x87, 0x88, 0x89, 0x8A, 0x8B};
+const static uint8_t boat_addresses_LSB[6] = {0x81, 0x82, 0x83, 0x84, 0x85, 0x86};
 
 /*
 uint8_t txFrame[] = {
@@ -74,13 +75,14 @@ uint8_t txFrame[] = {
 };
 */
 // variables for the 7 seg display
+#define seven_seg_flash_duration 500
 #define SRCLK_port LATAbits.LATA0 // clock pin for SN74HC595 shift register
 #define RCLK_port LATAbits.LATA1  // latch pin for SN74HC595 shift register
 #define SER_port LATAbits.LATA2   // data pin for SN74HC595 shift register
-#define SHORT_DELAY() asm volatile ("nop; nop; nop; nop")
+#define SHORT_DELAY() asm volatile("nop; nop; nop; nop")
 // 7-segment patterns (common cathode)
 // a–g, dp: MSB = a, LSB = dp
-const uint8_t seg_table[10] = {
+const uint8_t seg_table[11] = {
     0b00111111, // 0
     0b00000110, // 1
     0b01011011, // 2
@@ -90,8 +92,22 @@ const uint8_t seg_table[10] = {
     0b01111101, // 6
     0b00000111, // 7
     0b01111111, // 8
-    0b01101111  // 9
+    0b01101111,  // 9
+    0b00000000, // 10 means no display
 };
+
+// variables for battery(charge) level indication (servo)
+#define charge_byte_full 150
+#define charge_update_interval 300 // 300ms
+#define OC_channel_4_servo 1
+#define PWM_period_us 20000
+#define PWM_freq 50 // 50Hz
+#define lower_PW_us 500
+#define upper_PW_us 2500
+#define ticks_per_us 2.5
+static uint16_t PW_range_us;
+static uint16_t PulseWidth_servo_us;
+extern uint8_t powerByte; //set in comm service
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -122,7 +138,9 @@ bool InitcontrollerFSM(uint8_t Priority)
   config_joystick_ADC();
   config_buttons();
   config_shift_reg();
-  adjust_7seg(boat_selected); // display 8 on the 7-segment display
+  config_charge_indicator();
+  adjust_7seg(0); // display 0 on the 7-segment display to indicate no boat selected
+  ES_Timer_InitTimer(sevenSeg_flash_TIMER, seven_seg_flash_duration); // set the timer for 100ms
   DB_printf("controllerFSM successfully initialized\n");
   // post the initial transition event
   ThisEvent.EventType = ES_INIT;
@@ -179,17 +197,35 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
 {
   ES_Event_t ReturnEvent;
   ReturnEvent.EventType = ES_NO_EVENT; // assume no errors
-  if (ThisEvent.EventType == ES_TIMEOUT && ThisEvent.EventParam == JoystickScan_TIMER)
+  // executed regardless of the state
+  if (ThisEvent.EventType == ES_TIMEOUT)
   {
-    // read the joystick values
-    ADC_MultiRead(Curr_AD_Val);
-    
-    // update the joystick values in the txFrame
-    txFrame[joy_x_byte] = (uint8_t)(Curr_AD_Val[0] >> 2); // right shift to get 8 bits (divide by 4)
-    txFrame[joy_y_byte] = (uint8_t)(Curr_AD_Val[1] >> 2); // right shift to get 8 bits (divide by 4)
-    DB_printf("joystick X: %d Y: %d\n", txFrame[joy_x_byte], txFrame[joy_y_byte]);
-    ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval);
+    if (ThisEvent.EventParam == JoystickScan_TIMER)
+    {
+      // read the joystick values
+      ADC_MultiRead(Curr_AD_Val);
+      // update the joystick values in the txFrame
+      txFrame[joy_x_byte] = (uint8_t)(Curr_AD_Val[0] >> 2); // right shift to get 8 bits (divide by 4)
+      txFrame[joy_y_byte] = (uint8_t)(Curr_AD_Val[1] >> 2); // right shift to get 8 bits (divide by 4)
+      //DB_printf("joystick X: %d Y: %d\n", txFrame[joy_x_byte], txFrame[joy_y_byte]);
+      ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval);
+    }
+    if (ThisEvent.EventParam == ServoUpdate_TIMER)
+    {
+      ES_Timer_InitTimer(ServoUpdate_TIMER, charge_update_interval);
+      //DB_printf("charge byte is %d\n", powerByte);
+      if (powerByte <= charge_byte_full)
+      {
+        PulseWidth_servo_us = upper_PW_us - (float)(powerByte * PW_range_us / charge_byte_full);
+        PWMOperate_SetPulseWidthOnChannel(PulseWidth_servo_us * ticks_per_us, OC_channel_4_servo);
+        //DB_printf("servo pulse width is set to %u us\n", PulseWidth_servo_us);
+        
+      }else {
+        //DB_printf("charge byte is out of range so we don't update servo\n");
+      }
+    }
   }
+
   switch (CurrentState)
   {
   case Idle_s:
@@ -204,17 +240,37 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
       {
         boat_selected = 1;
       }
-      adjust_7seg(boat_selected);
       // update the boat number in the txFrame
+      txFrame[dst_addr_msb_byte] = boat_addresses_MSB; 
       txFrame[dst_addr_lsb_byte] = boat_addresses_LSB[boat_selected - 1];
-      DB_printf("boat address is locked to %d selected\n", txFrame[dst_addr_lsb_byte]);
+      DB_printf("boat address is locked to %d selected, which is boat %d\n", txFrame[dst_addr_lsb_byte], boat_selected);
     }
     else if (ThisEvent.EventType == ES_PAIR_BUTTON_PRESSED)
     {
       CurrentState = Pairing_s;
       // update the pairing status byte in txFrame
       txFrame[status_byte] = pairing_status_msg;
+      // make sure the 7 segment is displaying the right boat number
+      adjust_7seg(boat_selected);
+      ES_Timer_StopTimer(sevenSeg_flash_TIMER); // stop the flashing
       DB_printf("start pairing with boart number %d\n", boat_selected);
+    } else if (ThisEvent.EventType == ES_TIMEOUT && ThisEvent.EventParam == sevenSeg_flash_TIMER)
+    {
+      static bool seven_seg_ON = true;
+      ES_Timer_InitTimer(sevenSeg_flash_TIMER, seven_seg_flash_duration); 
+      // ensure that the boat number displayed is actually written into txFrame
+      txFrame[dst_addr_msb_byte] = boat_addresses_MSB; 
+      txFrame[dst_addr_lsb_byte] = boat_addresses_LSB[boat_selected - 1];
+      if (!seven_seg_ON)
+      {
+        adjust_7seg(boat_selected);
+        seven_seg_ON = true;
+      }
+      else
+      {
+        adjust_7seg(10); //10 means no display
+        seven_seg_ON = false;
+      }
     }
   }
   break;
@@ -234,10 +290,14 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
     if (ThisEvent.EventType == ES_DROP_COAL_BUTTON_PRESSED)
     {
       DB_printf("Drop coal event received\n");
+      //txFrame[buttons_byte] &= 0b01; // set the drop coal bit
+      txFrame[buttons_byte] = 0b00000001;
     }
     else if (ThisEvent.EventType == ES_DROP_ANCHOR_BUTTON_PRESSED)
     {
       DB_printf("Drop anchor event received\n");
+      //txFrame[buttons_byte] &= 0b10; // set the drop anchor bit
+      txFrame[buttons_byte] = 0b00000010;
     }
     else if (ThisEvent.EventType == ES_IMU_ORIENTATION_SWITCH && ThisEvent.EventParam == 1)
     {
@@ -293,6 +353,23 @@ controllerState_t QuerycontrollerFSM(void)
 /***************************************************************************
  private functions
  ***************************************************************************/
+static void config_charge_indicator(void)
+{
+  TRISBbits.TRISB15 = 0; // output for OC1
+  ANSELBbits.ANSB15 = 0; // digital pin
+  PWMSetup_BasicConfig(OC_channel_4_servo);
+  // PWMSetup_SetPeriodOnTimer(PWM_period_us * ticks_per_us, _Timer2_);
+  PWMSetup_SetFreqOnTimer(PWM_freq, _Timer2_); // set the PWM frequency
+  DB_printf("servo PWM frequency is set to %u Hz \n", PWM_freq);
+  PWMSetup_AssignChannelToTimer(OC_channel_4_servo, _Timer2_);
+  PWMSetup_MapChannelToOutputPin(OC_channel_4_servo, PWM_RPB15);
+  PW_range_us = upper_PW_us - lower_PW_us;
+  // set intial charge to 0
+  PulseWidth_servo_us = upper_PW_us; // upper = leftmost servo position
+  PWMOperate_SetPulseWidthOnChannel(PulseWidth_servo_us * ticks_per_us, OC_channel_4_servo);
+  ES_Timer_InitTimer(ServoUpdate_TIMER, charge_update_interval);
+  return;
+}
 static void config_shift_reg(void)
 {
   // configure the shift register pins
@@ -333,14 +410,14 @@ static void adjust_7seg(uint8_t digit_input)
   for (int i = 7; i >= 0; i--)
   {
     SRCLK_port = 0;
-    SHORT_DELAY();  // Ensure clock low period
+    SHORT_DELAY(); // Ensure clock low period
     SER_port = (data >> i) & 0x01;
     SHORT_DELAY();
     SRCLK_port = 1; // Rising edge shifts in bit
     SHORT_DELAY();
   }
   RCLK_port = 1; // Rising edge latches all bits to output
-  DB_printf("7seg is displaying boat number: %d\n", digit_input);
+  //DB_printf("7seg is displaying boat number: %d\n", digit_input);
   return;
 }
 

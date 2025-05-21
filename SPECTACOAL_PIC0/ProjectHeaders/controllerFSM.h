@@ -12,6 +12,7 @@
 #include "ES_Configure.h" /* gets us event definitions */
 #include "ES_Types.h"     /* gets bool type for returns */
 // communication defines
+#define boat_addresses_MSB 0x20
 #define pairing_status_msg 0x02
 #define driving_status_msg 0x00
 #define charging_status_msg 0x01
@@ -26,7 +27,7 @@ status_byte,joy_x_byte,joy_y_byte,buttons_byte,check_sum_byte,
 // State definitions for use with the query function
 typedef enum
 {
-  Idle_s, Pairing_s, DriveMode_s, ChargeMode_s
+  P_init_s, Idle_s, Pairing_s, DriveMode_s, ChargeMode_s
 }controllerState_t;
 
 // Public Function Prototypes

@@ -43,31 +43,59 @@
 // with the introduction of Gen2, we need a module level Priority variable
 #define ONE_SEC 1000
 #define ONEFIFTH_SEC (ONE_SEC / 5)
-#define FRAME_LEN 13
+#define FRAME_LEN_TX 13
+#define FRAME_LEN_RX 13
+#define IS_PAIRED_CHARGE 0xFF
 
 uint8_t txFrame[] = {
   0x7E,          // Start delimiter
   0x00, 0x09,    // Length (MSB, LSB) = 8 bytes of data after this field
   0x01,          // Frame type = TX (16-bit address)
   0x00,          // Frame ID (0 = no ACK)
-  0x20, 0x86,    // TEST: Destination address = 0x2086
+  0xFF, 0xFF,    // Destination address = 0xFFFF (uninitialized address)
   0x01,          // Options = 0x01 to disable ACK
-  0x00, 0x7F, 0x7F, 0x00,// TEST: Pairing: 0x02 (byte 9), 0x00 (byte 10), 0x00 (byte 11), 0x00 (byte 12)
-  0x59           // Checksum (computed as 0xFF - sum of bytes after 0x7E)
+  0x00, 0x00, 0x00, 0x00,// TEST: Pairing: 0x02 (byte 9), 0x00 (byte 10), 0x00 (byte 11), 0x00 (byte 12)
+  0x00           // Checksum (computed as 0xFF - sum of bytes after 0x7E)
 };
 
-uint8_t txFrame2[] = {
-  0x7E,          // Start delimiter
-  0x00, 0x09,    // Length (MSB, LSB) = 8 bytes of data after this field
-  0x01,          // Frame type = TX (16-bit address)
-  0x00,          // Frame ID (0 = no ACK)
-  0x20, 0x86,    // TEST: Destination address = 0x2086
-  0x01,          // Options = 0x01 to disable ACK
-  0x00, 0xC8, 0xC8, 0x00,// TEST: Pairing: 0x02 (byte 9), 0x00 (byte 10), 0x00 (byte 11), 0x00 (byte 12)
-  0xC7           // Checksum (computed as 0xFF - sum of bytes after 0x7E)
-};
-static uint8_t counter = 0; 
+/******DEBUG*******/
+/*
+126
+0
+9
+1
+0
+255 (should be 32 later)
+255 (should be 129-134)
+1
+0
+0
+0
+0
+0
+*/
+
+// Module variables
+static bool isPaired = false;
+static bool hasAnchorMSGSent = false;
+static bool hasDumpMSGSent = false;
+static uint8_t buttonMSGCounter = 0; 
 static uint8_t MyPriority;
+
+// Variables For Receiving
+static volatile uint8_t rxByte = 0xFF; // default to 0xFF
+static volatile uint8_t rxBuffer[FRAME_LEN_RX];                                           
+static volatile uint8_t rxIndex = 0;
+static volatile uint16_t expectedLength = 0;
+static volatile bool isReceiving = false;
+
+// Payload variables
+static uint8_t targetAddressMSB = 0xFF; // Modified based on input from ControllerFSM.c
+static uint8_t targetAddressLSB = 0xFF; // Modified based on input from ControllerFSM.c
+static uint8_t sourceAddressMSB = 0xFF; // Modified based on incoming packet from boat
+static uint8_t sourceAddressLSB = 0xFF; // Modified based on incoming packet from boat
+uint8_t powerByte = 0x00; // default to charge 0
+
 
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
@@ -169,21 +197,71 @@ ES_Event_t RunControllerComm(ES_Event_t ThisEvent)
     break; 
     case ES_TIMEOUT:
       if (ThisEvent.EventParam == CTRLCOMM_TIMER) { 
-        // 1. Build and send txFrame
-        /*
-        if (counter <= 10) {
-          SendFrame(txFrame, FRAME_LEN);
-          counter++;
+        // 1. Build and send txFrame if targetAddress has been modified
+        //printTxFrame();
+        if (!isPaired) {
+          if (txFrame[5] != 0xFF && txFrame[6] != 0xFF) {
+            // User has selected the boat, but hasn't pressed 'sent' button
+            if (txFrame[8] == STATUS_PAIRING) {
+              // User pressed 'sent' button, keep sending pairing request
+              targetAddressMSB = txFrame[5];
+              targetAddressLSB = txFrame[6];
+              SendFrame(txFrame, FRAME_LEN_TX);
+              //DB_printf("Sent pairing request\r\n");
+              // printTxFrame();
+            }
+            else {
+              // Wait until user press 'sent' button
+              // Ignore commands except pairing 
+            }
+          }
+          else {
+            // User hasn't select boat to pair to
+          }
         }
-        else {
-          SendFrame(txFrame2, FRAME_LEN);
+        else { // isPaired
+          if (txFrame[11] != 0x00) {
+            // Either anchor/dump button pressed, or both.
+//            if (!isbuttonPressed) { //hasn't sent
+//              
+//            }
+            
+          }
+          SendFrame(txFrame, FRAME_LEN_TX);
+          printTxFrame();
+          DB_printf("Sent Frame\r\n");
         }
-        */
-        SendFrame(txFrame, FRAME_LEN);
         // 2. Restart 200ms timer
         ES_Timer_InitTimer(CTRLCOMM_TIMER, ONEFIFTH_SEC);
       }
     break;
+    case ES_PACKET_IN: // Received packet from Boat
+      ParseAPIFrame(); // Sanity check and update sourceAddress and powerByte
+      //DB_printf("\rsourceAddressMSB = %d\r\n", sourceAddressMSB);
+      //DB_printf("\rsourceAddressLSB = %d\r\n", sourceAddressLSB);
+      DB_printf("\rpowerByte = %d\r\n", powerByte);
+      if (isPaired) {
+        DB_printf("Received a packet from boat\r\n");
+        // No further action required, controllerFSM will read updated powerByte by itself
+      }
+      else { // if not paired
+        if (sourceAddressMSB == targetAddressMSB && sourceAddressLSB == targetAddressLSB) {
+          if (powerByte == IS_PAIRED_CHARGE) {
+            // Pairing confirmed, post ES_BOAT_PAIRED to controllerFSM
+            DB_printf("Pairing is successful\r\n");
+            isPaired = true; 
+            ES_Event_t pairEvent;
+            pairEvent.EventType = ES_BOAT_PAIRED;
+            PostcontrollerFSM(pairEvent); 
+          }
+          else {
+            DB_printf("Target/Source address match, waiting for powerByte:0XFF\r\n");
+          }
+        }
+        else {
+          DB_printf("Error: sourceAddress and targetAddress mismatch\r\n");
+        }
+      }
   }
   return ReturnEvent;
 }
@@ -244,23 +322,137 @@ void SetupUART() {
   U2MODEbits.ON = 1;
 }
 
+void __ISR(_UART_2_VECTOR, IPL7SOFT) U2RxISR(void)
+{
+  rxByte = U2RXREG; // Read U2RX register into Message
+  //DB_printf("rxByte = %d\r\n", rxByte);
+  ProcessUARTByte(rxByte); // Pass byte to byte-level decoder
+  IFS1CLR = _IFS1_U2RXIF_MASK; // Clear Rx interrupt flag
+}
+
+void ProcessUARTByte(uint8_t byte) {
+  if (!isReceiving) {
+    if (byte == 0x7E) {  // Start delimiter
+      //DB_printf("Received start delimiter\r\n");
+      if (rxIndex == 0) {
+        rxBuffer[rxIndex] = byte;
+        rxIndex++;
+        isReceiving = true;
+      }
+      else {
+        DB_printf("Error: Received start delimiter, but rxIndex not 0\r\n");
+      }
+      return;
+    }
+  }
+  else { // is receiving
+    // Store the byte and then increment
+    rxBuffer[rxIndex] = byte;
+    rxIndex++;
+
+    if (rxIndex == 3) {
+      // We've received the two length bytes (MSB, LSB)
+      uint8_t msb = rxBuffer[1];
+      uint8_t lsb = rxBuffer[2];
+      expectedLength = 4 + ((msb << 8) | lsb);  // Add start, length, checksum
+    }
+
+    if (expectedLength > 0 && rxIndex == expectedLength) { // complete a packet
+      //DB_printf("Received a packet\r\n");
+      ES_Event_t RxEvent;
+      RxEvent.EventType = ES_PACKET_IN;
+      PostControllerComm(RxEvent); // Post an event to BoatComm FSM
+      isReceiving = false;
+      rxIndex = 0;
+    }
+
+    if (rxIndex > FRAME_LEN_RX) {
+      // Overflow or malformed frame, reset
+      DB_printf("Error: rxBuffer overflow, check your framing\r\n");
+      isReceiving = false;
+      rxIndex = 0;
+    }
+  }
+}
+
+void ParseAPIFrame() {
+  // Step 1: Sanity check for start byte
+  if (rxBuffer[0] != 0x7E) {
+    DB_printf("Error: Invalid Start Delimiter\r\n");
+    return;
+  }
+
+  // Step 2: Verify checksum
+  uint8_t calculatedChecksum = 0;
+  for (uint16_t i = 3; i < expectedLength - 1; i++) {
+    calculatedChecksum += rxBuffer[i];
+  }
+  calculatedChecksum = 0xFF - calculatedChecksum;
+  uint8_t receivedChecksum = rxBuffer[expectedLength - 1];
+  if (calculatedChecksum != receivedChecksum) {
+    DB_printf("Error: checksum mismatch\r\n");
+    return;
+  }
+
+  // Step 3: Extract Frame Type, should only consider 0x81
+  uint8_t frameType = rxBuffer[3];
+  if (frameType != 0x81) {
+    DB_printf("Error: unsupported frame type\r\n");
+  }
+  else {
+    // Update sourceAddress and powerByte
+    sourceAddressMSB = rxBuffer[4];
+    sourceAddressLSB = rxBuffer[5];
+    powerByte = rxBuffer[8]; 
+  }
+}
+
+/*
+void updateTxFrame() {
+  if (isPaired) {// Prerequisite: sourceAddressMSB and sourceAddressLSB != 0xFF
+    // Modify address bytes
+    txFrame[5] = sourceAddressMSB; 
+    txFrame[6] = sourceAddressLSB; 
+    // Modify chargeLevel byte; if hasn't sent pairing message, set to 0XFF
+    if (!hasSentPairingMessage) {
+      txFrame[8] = IS_PAIRED; 
+      pairingMessageCounter++;
+      if (pairingMessageCounter == NUM_PAIRING_MESSAGE) {
+        hasSentPairingMessage = true; // turn off 0xFF
+        pairingMessageCounter = 0; 
+      }
+    }
+    else {
+      txFrame[8] = Power; 
+    } 
+    // checksum will be calculated in SendFrame()
+  }
+  else {
+    DB_printf("Error: Attempting to updateTxFrame() while unpaired\r\n");
+  }
+}
+*/
+
 void SendFrame() {
-  // Make a local copy so we can modify it
   // === Calculate checksum ===
   uint8_t sum = 0;
-  for (uint8_t i = 3; i < FRAME_LEN - 1; i++) {
+  for (uint8_t i = 3; i < FRAME_LEN_TX - 1; i++) {
     sum += txFrame[i];
   }
-  txFrame[FRAME_LEN - 1] = 0xFF - sum;  // Modify checksum at txFrame[12]
+  txFrame[FRAME_LEN_TX - 1] = 0xFF - sum;  // Modify checksum at txFrame[12]
   
   // Send entire frame
-  for (uint8_t i = 0; i < FRAME_LEN; i++) {
+  for (uint8_t i = 0; i < FRAME_LEN_TX; i++) {
     while (!U2STAbits.TRMT); // Wait until Transmit Register is empty
     U2TXREG = txFrame[i];
   }
 }
 
-// TODO: Implement checkSum function? 
+void printTxFrame() {
+  for (uint8_t i = 0; i < FRAME_LEN_TX; i++) {
+    DB_printf("txFrame[i] = %d\r\n", txFrame[i]);
+  }
+}
 /*------------------------------- Footnotes -------------------------------*/
 /*------------------------------ End of file ------------------------------*/
 
