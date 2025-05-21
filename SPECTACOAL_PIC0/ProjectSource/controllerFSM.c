@@ -92,7 +92,7 @@ const uint8_t seg_table[11] = {
     0b01111101, // 6
     0b00000111, // 7
     0b01111111, // 8
-    0b01101111,  // 9
+    0b01101111, // 9
     0b00000000, // 10 means no display
 };
 
@@ -107,7 +107,7 @@ const uint8_t seg_table[11] = {
 #define ticks_per_us 2.5
 static uint16_t PW_range_us;
 static uint16_t PulseWidth_servo_us;
-extern uint8_t powerByte; //set in comm service
+extern uint8_t powerByte; // set in comm service
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -139,7 +139,7 @@ bool InitcontrollerFSM(uint8_t Priority)
   config_buttons();
   config_shift_reg();
   config_charge_indicator();
-  adjust_7seg(0); // display 0 on the 7-segment display to indicate no boat selected
+  adjust_7seg(0);                                                     // display 0 on the 7-segment display to indicate no boat selected
   ES_Timer_InitTimer(sevenSeg_flash_TIMER, seven_seg_flash_duration); // set the timer for 100ms
   DB_printf("controllerFSM successfully initialized\n");
   // post the initial transition event
@@ -207,21 +207,22 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
       // update the joystick values in the txFrame
       txFrame[joy_x_byte] = (uint8_t)(Curr_AD_Val[0] >> 2); // right shift to get 8 bits (divide by 4)
       txFrame[joy_y_byte] = (uint8_t)(Curr_AD_Val[1] >> 2); // right shift to get 8 bits (divide by 4)
-      //DB_printf("joystick X: %d Y: %d\n", txFrame[joy_x_byte], txFrame[joy_y_byte]);
+      // DB_printf("joystick X: %d Y: %d\n", txFrame[joy_x_byte], txFrame[joy_y_byte]);
       ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval);
     }
     if (ThisEvent.EventParam == ServoUpdate_TIMER)
     {
       ES_Timer_InitTimer(ServoUpdate_TIMER, charge_update_interval);
-      //DB_printf("charge byte is %d\n", powerByte);
+      // DB_printf("charge byte is %d\n", powerByte);
       if (powerByte <= charge_byte_full)
       {
         PulseWidth_servo_us = upper_PW_us - (float)(powerByte * PW_range_us / charge_byte_full);
         PWMOperate_SetPulseWidthOnChannel(PulseWidth_servo_us * ticks_per_us, OC_channel_4_servo);
-        //DB_printf("servo pulse width is set to %u us\n", PulseWidth_servo_us);
-        
-      }else {
-        //DB_printf("charge byte is out of range so we don't update servo\n");
+        // DB_printf("servo pulse width is set to %u us\n", PulseWidth_servo_us);
+      }
+      else
+      {
+        // DB_printf("charge byte is out of range so we don't update servo\n");
       }
     }
   }
@@ -241,7 +242,7 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
         boat_selected = 1;
       }
       // update the boat number in the txFrame
-      txFrame[dst_addr_msb_byte] = boat_addresses_MSB; 
+      txFrame[dst_addr_msb_byte] = boat_addresses_MSB;
       txFrame[dst_addr_lsb_byte] = boat_addresses_LSB[boat_selected - 1];
       DB_printf("boat address is locked to %d selected, which is boat %d\n", txFrame[dst_addr_lsb_byte], boat_selected);
     }
@@ -254,12 +255,13 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
       adjust_7seg(boat_selected);
       ES_Timer_StopTimer(sevenSeg_flash_TIMER); // stop the flashing
       DB_printf("start pairing with boart number %d\n", boat_selected);
-    } else if (ThisEvent.EventType == ES_TIMEOUT && ThisEvent.EventParam == sevenSeg_flash_TIMER)
+    }
+    else if (ThisEvent.EventType == ES_TIMEOUT && ThisEvent.EventParam == sevenSeg_flash_TIMER)
     {
       static bool seven_seg_ON = true;
-      ES_Timer_InitTimer(sevenSeg_flash_TIMER, seven_seg_flash_duration); 
+      ES_Timer_InitTimer(sevenSeg_flash_TIMER, seven_seg_flash_duration);
       // ensure that the boat number displayed is actually written into txFrame
-      txFrame[dst_addr_msb_byte] = boat_addresses_MSB; 
+      txFrame[dst_addr_msb_byte] = boat_addresses_MSB;
       txFrame[dst_addr_lsb_byte] = boat_addresses_LSB[boat_selected - 1];
       if (!seven_seg_ON)
       {
@@ -268,7 +270,7 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
       }
       else
       {
-        adjust_7seg(10); //10 means no display
+        adjust_7seg(10); // 10 means no display
         seven_seg_ON = false;
       }
     }
@@ -290,18 +292,17 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
     if (ThisEvent.EventType == ES_DROP_COAL_BUTTON_PRESSED)
     {
       DB_printf("Drop coal event received\n");
-      //txFrame[buttons_byte] &= 0b01; // set the drop coal bit
-      txFrame[buttons_byte] = 0b00000001;
+      // txFrame[buttons_byte] &= 0b01; // set the drop coal bit
+      txFrame[buttons_byte] |= 0b00000001;
     }
     else if (ThisEvent.EventType == ES_DROP_ANCHOR_BUTTON_PRESSED)
     {
       DB_printf("Drop anchor event received\n");
-      //txFrame[buttons_byte] &= 0b10; // set the drop anchor bit
-      txFrame[buttons_byte] = 0b00000010;
+      // txFrame[buttons_byte] &= 0b10; // set the drop anchor bit
+      txFrame[buttons_byte] |= 0b00000010;
     }
-    else if (ThisEvent.EventType == ES_IMU_ORIENTATION_SWITCH && ThisEvent.EventParam == 1)
+    else if (ThisEvent.EventType == ES_IMU_UP_SIDE_DOWN)
     {
-      // event param of 1 means upside down
       CurrentState = ChargeMode_s;
       exitDriveMode_s();
       enterChargeMode_s();
@@ -311,13 +312,21 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
   break;
   case ChargeMode_s:
   {
-    if (ThisEvent.EventType == ES_IMU_ORIENTATION_SWITCH && ThisEvent.EventParam == 0)
+    if (ThisEvent.EventType == ES_IMU_RIGHT_SIDE_UP)
     {
-      // event param of 0 means right side up
       CurrentState = DriveMode_s;
       enterDriveMode_s();
       DB_printf("switch from ChargeMode to DriveMode\n");
     }
+    else if (ThisEvent.EventType == ES_IMU_IS_NOT_CHARGING)
+    {
+      txFrame[status_byte] = driving_status_msg; // update the pairing status byte in txFrame
+    }
+    else if (ThisEvent.EventType == ES_IMU_IS_CHARGING)
+    {
+      txFrame[status_byte] = charging_status_msg; // update the pairing status byte in txFrame
+    }
+    
   }
   break;
   default:
@@ -417,7 +426,7 @@ static void adjust_7seg(uint8_t digit_input)
     SHORT_DELAY();
   }
   RCLK_port = 1; // Rising edge latches all bits to output
-  //DB_printf("7seg is displaying boat number: %d\n", digit_input);
+  // DB_printf("7seg is displaying boat number: %d\n", digit_input);
   return;
 }
 
@@ -439,8 +448,8 @@ static void exitDriveMode_s(void)
 
 static void enterChargeMode_s(void)
 {
-  txFrame[status_byte] = charging_status_msg;  // update the pairing status byte in txFrame
   txFrame[joy_x_byte] = joy_stick_neutral_msg; // set joystick values to neutral
   txFrame[joy_y_byte] = joy_stick_neutral_msg; // set joystick values to neutral
+  txFrame[buttons_byte] = 0b00000000;          // set all button bits to 0
   return;
 }
