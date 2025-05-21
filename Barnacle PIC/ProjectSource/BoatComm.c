@@ -45,16 +45,38 @@
 // with the introduction of Gen2, we need a module level Priority variable
 #define ONE_SEC 1000
 #define ONEFIFTH_SEC (ONE_SEC / 5)
-#define FRAME_LEN 13
+#define FOUR_SEC (ONE_SEC * 4)
+#define FRAME_LEN_RX 13
+#define FRAME_LEN_TX 13
+#define IS_PAIRED 0xFF
+#define NUM_PAIRING_MESSAGE 5
+
+static uint8_t txFrame[FRAME_LEN_TX] = {
+  0x7E,          // Start delimiter
+  0x00, 0x09,    // Length (MSB, LSB) = 6 bytes of data after this field
+  0x01,          // Frame type = TX (16-bit address)
+  0x00,          // Frame ID (0 = no ACK)
+  0xFF, 0xFF,    // Destination address = 0x218?
+  0x01,          // Options = 0x01 to disable ACK
+  0x00, 0x00, 0x00, 0x00,  // ChargeLevel: 0x00 (initialized), 0xFF(Pairing Success)
+  0x00           // Checksum (computed as 0xFF - sum of bytes after 0x7E)
+};
 
 static uint8_t MyPriority;
 static UARTState_t CurrentState = InitState;
+static bool isPaired = false; // Default to false 
+static bool hasSentPairingMessage = false; // Default to false
+static uint8_t pairingMessageCounter = 0; // Default to 0
+
+// Variables For Receiving
 static volatile uint8_t rxByte = 0xFF; // default to 0xFF
-static volatile uint8_t rxBuffer[FRAME_LEN];
+static volatile uint8_t rxBuffer[FRAME_LEN_RX];
 static volatile uint8_t rxIndex = 0;
 static volatile uint16_t expectedLength = 0;
 static volatile bool isReceiving = false;
-static volatile bool isPaired = true; // TODO: default to false later
+
+// Variables For Transmitting
+
 // Payload variables
 uint8_t sourceAddressMSB = 0xFF; // rxIndex = 4
 uint8_t sourceAddressLSB = 0xFF; // rxIndex = 5
@@ -159,38 +181,67 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
     {
       if (ThisEvent.EventType == ES_INIT)    // only respond to ES_Init
       {
-        // Do nothing
+        ES_Timer_InitTimer(BOATCOMM_TIMER, FOUR_SEC); // start 4 sec unpair timer
         CurrentState = Receiving;
       }
     }
     break;
 
-    case Receiving: 
-      /*
+    case Receiving:
+    { 
+      // If not receicing ES_PACKET_IN for 4 secs, unpair boat from controller and reset
       if (ThisEvent.EventType == ES_TIMEOUT && ThisEvent.EventParam == BOATCOMM_TIMER)
-      {
-        isPaired == false; // Unpair the boat from current controller
-        //postBoatFSM(ES_UNPAIR); 
+      { 
+        // 1. Post ES_UNPAIRED to BoatFSMs
+        ES_Event_t unpairEvent;
+        unpairEvent.EventType = ES_UNPAIRED; 
+        PostDrivetrainService(unpairEvent);
+        PostPowerService(unpairEvent);
+
+        // 2. Reset all boat variables
+        isPaired = false; 
+        hasSentPairingMessage = false;
+        pairingMessageCounter = 0;
+        sourceAddressMSB = 0xFF; //IMPORTANT: RESET sourceAddressMSB and sourceAddressLSB !!!!!!
+        sourceAddressLSB = 0xFF; 
+        statusByte = 0xFF; 
+        joystickOneByte = 0xFF; 
+        joystickTwoByte = 0xFF; 
+        buttonByte = 0xFF; 
       }
-      */
-      if (ThisEvent.EventType == ES_PACKET_IN)
+      else if (ThisEvent.EventType == ES_PACKET_IN)
       {
+        // 1. Restart 4sec Timer
+        ES_Timer_InitTimer(BOATCOMM_TIMER, FOUR_SEC);
+
+        // 2. Parse the incoming API Packet, update extern byte variables
         ParseAPIFrame();
-        //DB_printf("Debug 5\r\n");
         DB_printf("statusByte = %d\r\n", statusByte);
         switch (statusByte) 
         {
           case 0x00: // Driving
           {
-            //DB_printf("Debug 6\r\n");
             if (isPaired) {
-              //DB_printf("Debug 4\r\n");
-              ES_Event_t Event2Post;
-              Event2Post.EventType = ES_COMMAND;
-              PostDrivetrainService(Event2Post);
-              PostPowerService(Event2Post);
+              ES_Event_t commandEvent;
+              commandEvent.EventType = ES_COMMAND;
+              PostDrivetrainService(commandEvent);
+              PostPowerService(commandEvent);
+              DB_printf("Post ES_COMMAND to BoatFSMs\r\n");
+              DB_printf("buttonByte = %x\r\n", buttonByte);
+              // Handle button messages
+              if (buttonByte & (1 << 0)) { // Bit 0 is set, post ES_DUMP
+                ES_Event_t dumpEvent;
+                dumpEvent.EventType = ES_DUMP;
+                PostDrivetrainService(dumpEvent);
+                PostPowerService(dumpEvent);
+                DB_printf("Post ES_DUMP to BoatFSMs\r\n");
+              }
+              if (buttonByte & (1 << 1)) { // Bit 1 is set, Do nothing
+                // Since no anchor on our boat, do nothing
+              }
             }
             else {
+              // If boat unpaired, ignore packet
               DB_printf("Error: Boat unpaired, invalid command\r\n");
             }
           }
@@ -198,7 +249,16 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
 
           case 0x01: // Charging
           {
-
+            if (isPaired) {
+              ES_Event_t chargeEvent;
+              chargeEvent.EventType = ES_CHARGE; 
+              PostDrivetrainService(chargeEvent);
+              PostPowerService(chargeEvent);
+            }
+            else {
+              // If boat unpaired, ignore packet
+              DB_printf("Error: Boat unpaired, invalid command\r\n");
+            }
           }
           break;
 
@@ -206,15 +266,15 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
           {
             if (!isPaired) { 
               isPaired = true; 
-              DB_printf("Post ES_PAIR to BoatFSM\r\n");
-              /*
+              DB_printf("Post ES_PAIRED to BoatFSMs\r\n");
               ES_Event_t pairEvent;
-              pairEvent.EventType = ES_PAIR;
-              pairEvent.EventParam = sourceAddress;
-              PostBoatFSM(pairEvent); // Post an event to BoatComm FSM
-              */
+              pairEvent.EventType = ES_PAIRED;
+              // sourceAddressMSB and sourceAddressLSB are directly accessible at boatFSMs
+              PostDrivetrainService(pairEvent); // Post an event to BoatComm FSM
+              PostPowerService(pairEvent);
             }
             else {
+              DB_printf("Error: Boat paired, invalid pairing command\r\n");
               // Ignore excessive pairing requests or from other sources
             }
           }
@@ -226,23 +286,22 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
           }
           break; 
         }
+        CurrentState = Transmitting; 
       }
-    break;
-
-    /*
-    case Transmitting:
-    {
-      DB_printf("enter Tx\r\n");
-      REQUEST_LED = 1; // turn on request LED 
-      ES_Timer_InitTimer(LED_TIMER, HALF_SEC); // start LED timer 
-      InvertBit = RxMSG & (1<<3);
-      TxMSG = InvertBit | SwitchState;
-      DB_printf("TxMSG = %d\r\n", TxMSG);
-      U2TXREG = TxMSG; // put the mesg into Tx register
-      CurrentState = Waiting; // go to waiting state
+      else {
+        // Does not receive ES_TIMEOUT or ES_PACKET_IN, stay in current state
+      }
     }
     break;
-    */
+
+    case Transmitting:
+    {
+      updateTxFrame(); // updateTxFrame() accordingly
+      SendFrame(); // Send the 10-byte packet 
+      CurrentState = Receiving; // Transition back to Receicing State
+    }
+    break;
+    
     // repeat state pattern as required for other states
     default:
       ;
@@ -306,18 +365,10 @@ void SetupUART() {
   U2MODEbits.ON = 1;
 }
 
-/*
-void SendFrame(const uint8_t *frame, uint8_t len) {
-  for (int i = 0; i < len; i++) {
-    while (!U2STAbits.TRMT); // Wait until Transmit Register is empty
-    U2TXREG = frame[i];
-  }
-}
-*/
 void __ISR(_UART_2_VECTOR, IPL7SOFT) U2RxISR(void)
 {
   rxByte = U2RXREG; // Read U2RX register into Message
-  //DB_printf("rxByte = %d\r\n", rxByte);
+  // DB_printf("rxByte = %d\r\n", rxByte);
   ProcessUARTByte(rxByte); // Pass byte to byte-level decoder
   IFS1CLR = _IFS1_U2RXIF_MASK; // Clear Rx interrupt flag
 }
@@ -358,7 +409,7 @@ void ProcessUARTByte(uint8_t byte) {
       rxIndex = 0;
     }
 
-    if (rxIndex > FRAME_LEN) {
+    if (rxIndex > FRAME_LEN_RX) {
       // Overflow or malformed frame, reset
       DB_printf("Error: rxBuffer overflow, check your framing\r\n");
       isReceiving = false;
@@ -366,7 +417,6 @@ void ProcessUARTByte(uint8_t byte) {
     }
   }
 }
-
 
 void ParseAPIFrame() {
   // Step 1: Sanity check for start byte
@@ -393,8 +443,14 @@ void ParseAPIFrame() {
     DB_printf("Error: unsupported frame type\r\n");
   }
   else {
-    sourceAddressMSB = rxBuffer[4];
-    sourceAddressLSB = rxBuffer[5];
+    if (sourceAddressMSB == 0xFF && sourceAddressLSB == 0xFF) {
+      // Only allowed to change sourceAddress when unpaired
+      sourceAddressMSB = rxBuffer[4];
+      sourceAddressLSB = rxBuffer[5];
+    }
+    else {
+      // If paired, DO NOT change sourceAddressMSB/LSB !!!
+    }
     statusByte = rxBuffer[8];
     joystickOneByte = rxBuffer[9];
     joystickTwoByte = rxBuffer[10];
@@ -402,7 +458,44 @@ void ParseAPIFrame() {
   }
 }
 
-// TODO: Implement checkSum function? 
+void updateTxFrame() {
+  if (isPaired) {// Prerequisite: sourceAddressMSB and sourceAddressLSB != 0xFF
+    // Modify address bytes
+    txFrame[5] = sourceAddressMSB; 
+    txFrame[6] = sourceAddressLSB; 
+    // Modify chargeLevel byte; if hasn't sent pairing message, set to 0XFF
+    if (!hasSentPairingMessage) {
+      txFrame[8] = IS_PAIRED; // 0xFF
+      pairingMessageCounter++;
+      if (pairingMessageCounter == NUM_PAIRING_MESSAGE) {
+        hasSentPairingMessage = true; // turn off 0xFF
+        pairingMessageCounter = 0; 
+      }
+    }
+    else {
+      txFrame[8] = Power; 
+    } 
+    // checksum will be calculated in SendFrame()
+  }
+  else {
+    DB_printf("Error: Attempting to updateTxFrame() while unpaired\r\n");
+  }
+}
+
+void SendFrame() {
+  // === Calculate checksum ===
+  uint8_t sum = 0;
+  for (uint8_t i = 3; i < FRAME_LEN_TX - 1; i++) {
+    sum += txFrame[i];
+  }
+  txFrame[FRAME_LEN_TX - 1] = 0xFF - sum;  // Modify checksum at txFrame[9]
+  
+  // Send entire frame
+  for (uint8_t i = 0; i < FRAME_LEN_TX; i++) {
+    while (!U2STAbits.TRMT); // Wait until Transmit Register is empty
+    U2TXREG = txFrame[i];
+  }
+}
 /*------------------------------- Footnotes -------------------------------*/
 /*------------------------------ End of file ------------------------------*/
 

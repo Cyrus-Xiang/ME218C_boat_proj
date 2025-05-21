@@ -39,12 +39,12 @@
 /*----------------------------- Module Defines ----------------------------*/
 #define ONE_SEC 1000
 #define HALF_SEC ONE_SEC/2
-#define FOUR_SEC ONE_SEC*4
+#define FIFTH_SEC ONE_SEC/5
 
-#define DECHARGE_PERIOD ONE_SEC
-#define RECHARGE_PERIOD ONE_SEC
-#define IDLE_TIME FOUR_SEC
-#define FULL_POWER 30
+#define DECHARGE_PERIOD FIFTH_SEC
+#define RECHARGE_PERIOD FIFTH_SEC
+#define IDLE_TIME (ONE_SEC*4)
+#define FULL_POWER 150
 #define NO_POWER 0
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this machine.They should be functions
@@ -60,7 +60,7 @@ static BarnacleState_t CurrentState = Idle;
 static uint8_t MyPriority;
 
 // module variable 
-static uint8_t Power = NO_POWER;
+uint8_t Power = NO_POWER;
 
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
@@ -161,7 +161,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
       if (ThisEvent.EventType == ES_PAIRED)    
       {
         Power = FULL_POWER;
-        CurrentState = Power_On;
+        CurrentState = Idle;
       }
     }
     break;
@@ -181,7 +181,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
     {
       switch (ThisEvent.EventType)
       {
-        case ES_CHARGING_START:  
+        case ES_CHARGE:  
         {  
           ES_Timer_InitTimer(POWER_TIMER, RECHARGE_PERIOD);
           CurrentState = Recharging;
@@ -222,7 +222,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
     {
       switch (ThisEvent.EventType)
       {
-        case ES_CHARGING_END:  
+        case ES_CHARGE:  
         {  
           CurrentState = Idle;
         }
@@ -234,7 +234,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
           {
             ES_Timer_InitTimer(POWER_TIMER, RECHARGE_PERIOD);
             Power += 1;
-            Power = (Power<FULL_POWER)?Power:FULL_POWER;
+            Power = (Power<FULL_POWER)?Power:FULL_POWER; // Limit power to FULL_POWER
           }
           if (ThisEvent.EventParam == IDLE_TIMER)
           {
@@ -266,4 +266,3 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
 /***************************************************************************
  private functions
  ***************************************************************************/
-

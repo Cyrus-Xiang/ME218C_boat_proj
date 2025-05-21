@@ -262,14 +262,16 @@ typedef enum
   ES_NEW_KEY,               /* signals a new key received from terminal */
   ES_LOCK,
   ES_UNLOCK,
+
+  // BoatComm Events
   ES_PACKET_IN,
 
-  // Boat Events
+  // BoatFSM Events
   ES_PAIRED,
   ES_UNPAIRED,
   ES_COMMAND,
   ES_NOPWR,
-  ES_CHARGING,
+  ES_CHARGE,
   ES_DUMP
 }ES_EventType_t;
 
@@ -327,6 +329,7 @@ typedef enum
 #define TIMER10_RESP_FUNC TIMER_UNUSED
 #define TIMER11_RESP_FUNC PostBoatComm
 #define TIMER12_RESP_FUNC TIMER_UNUSED
+// #define TIMER13_RESP_FUNC PostADService
 #define TIMER13_RESP_FUNC PostPowerService
 #define TIMER14_RESP_FUNC PostDrivetrainService
 #define TIMER15_RESP_FUNC PostTestHarnessService0
@@ -341,6 +344,7 @@ typedef enum
 #define SERVICE0_TIMER 15
 #define IDLE_TIMER 14
 #define POWER_TIMER 13
+// #define AD_TIMER 12
 #define BOATCOMM_TIMER 11
 
 #endif /* ES_CONFIGURE_H */

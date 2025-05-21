@@ -43,7 +43,7 @@
 
 #define DECHARGE_PERIOD FIFTH_SEC
 #define RECHARGE_PERIOD FIFTH_SEC
-#define IDLE_TIME FOUR_SEC
+#define IDLE_TIME (ONE_SEC*4)
 #define FULL_POWER 150
 #define NO_POWER 0
 /*---------------------------- Module Functions ---------------------------*/
@@ -161,7 +161,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
       if (ThisEvent.EventType == ES_PAIRED)    
       {
         Power = FULL_POWER;
-        CurrentState = Power_On;
+        CurrentState = Idle;
       }
     }
     break;
@@ -181,9 +181,11 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
     {
       switch (ThisEvent.EventType)
       {
-        case ES_CHARGING:  
+        case ES_CHARGE:  
         {  
-          ES_Timer_InitTimer(POWER_TIMER, RECHARGE_PERIOD);
+          ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
+          Power += 6;
+          Power = (Power<FULL_POWER)?Power:FULL_POWER; // Limit power to FULL_POWER
           CurrentState = Recharging;
         }
         break;
@@ -222,24 +224,11 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
     {
       switch (ThisEvent.EventType)
       {
-        case ES_CHARGING:  
+        case ES_CHARGE:  
         {  
-          CurrentState = Idle;
-        }
-        break;
-
-        case ES_TIMEOUT:  
-        {  
-          if (ThisEvent.EventParam == POWER_TIMER)
-          {
-            ES_Timer_InitTimer(POWER_TIMER, RECHARGE_PERIOD);
-            Power += 1;
-            Power = (Power<FULL_POWER)?Power:FULL_POWER; // Limit power to FULL_POWER
-          }
-          if (ThisEvent.EventParam == IDLE_TIMER)
-          {
-            CurrentState = Idle;
-          }
+          Power += 6;
+          Power = (Power<FULL_POWER)?Power:FULL_POWER; // Limit power to FULL_POWER
+          ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
         }
         break;
 

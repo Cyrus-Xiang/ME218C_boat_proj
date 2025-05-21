@@ -240,7 +240,7 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
       if(ThisEvent.EventType == ES_PAIRED)
       {
         CurrentState = Idle;
-        PairingStateIndicator();
+        //PairingStateIndicator();
       }
     }
     break;
@@ -281,7 +281,7 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
 
         case ES_DUMP:
         {
-          DumpState = (DumpState + 1) % 2
+          DumpState = (DumpState + 1) % 2;
           if(DumpState == 1)
           {
             OC3RS = PR*SERVO_OPEN_POS/100;
@@ -357,6 +357,7 @@ uint8_t BoundaryCheck(uint8_t Value)
   Value = (Value>0)?Value:0;
   return Value;
 }
+
 
 void PairingStateIndicator(uint16_t Address)
 {
