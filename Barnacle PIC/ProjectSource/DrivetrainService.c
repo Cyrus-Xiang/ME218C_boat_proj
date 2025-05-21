@@ -295,14 +295,14 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
 
         case ES_NOPWR:
         {
-          PWMUpdate(0, 0);
+          PWMUpdate(127, 127);
           CurrentState = Idle;
         }
         break;
 
         case ES_UNPAIRED:
         {
-          PWMUpdate(0, 0);
+          PWMUpdate(127, 127);
           CurrentState = Pairing;
         }
         break;
