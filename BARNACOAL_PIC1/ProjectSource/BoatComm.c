@@ -227,7 +227,7 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
               PostDrivetrainService(commandEvent);
               PostPowerService(commandEvent);
               DB_printf("Post ES_COMMAND to BoatFSMs\r\n");
-
+              DB_printf("buttonByte = %x\r\n", buttonByte);
               // Handle button messages
               if (buttonByte & (1 << 0)) { // Bit 0 is set, post ES_DUMP
                 ES_Event_t dumpEvent;

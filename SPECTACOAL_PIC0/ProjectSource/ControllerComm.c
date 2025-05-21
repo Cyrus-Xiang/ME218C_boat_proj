@@ -84,7 +84,7 @@ static uint8_t MyPriority;
 
 // Variables For Receiving
 static volatile uint8_t rxByte = 0xFF; // default to 0xFF
-static volatile uint8_t rxBuffer[FRAME_LEN_RX];
+static volatile uint8_t rxBuffer[FRAME_LEN_RX];                                           
 static volatile uint8_t rxIndex = 0;
 static volatile uint16_t expectedLength = 0;
 static volatile bool isReceiving = false;
@@ -228,7 +228,8 @@ ES_Event_t RunControllerComm(ES_Event_t ThisEvent)
             
           }
           SendFrame(txFrame, FRAME_LEN_TX);
-          //DB_printf("Sent Frame\r\n");
+          printTxFrame();
+          DB_printf("Sent Frame\r\n");
         }
         // 2. Restart 200ms timer
         ES_Timer_InitTimer(CTRLCOMM_TIMER, ONEFIFTH_SEC);
