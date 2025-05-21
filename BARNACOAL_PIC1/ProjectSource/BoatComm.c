@@ -47,18 +47,18 @@
 #define ONEFIFTH_SEC (ONE_SEC / 5)
 #define FOUR_SEC (ONE_SEC * 4)
 #define FRAME_LEN_RX 13
-#define FRAME_LEN_TX 13
+#define FRAME_LEN_TX 10
 #define IS_PAIRED 0xFF
 #define NUM_PAIRING_MESSAGE 5
 
 static uint8_t txFrame[FRAME_LEN_TX] = {
   0x7E,          // Start delimiter
-  0x00, 0x09,    // Length (MSB, LSB) = 6 bytes of data after this field
+  0x00, 0x06,    // Length (MSB, LSB) = 6 bytes of data after this field
   0x01,          // Frame type = TX (16-bit address)
   0x00,          // Frame ID (0 = no ACK)
   0xFF, 0xFF,    // Destination address = 0x218?
   0x01,          // Options = 0x01 to disable ACK
-  0x00, 0x00, 0x00, 0x00,  // ChargeLevel: 0x00 (initialized), 0xFF(Pairing Success)
+  0x00,          // ChargeLevel: 0x00 (initialized), 0xFF(Pairing Success)
   0x00           // Checksum (computed as 0xFF - sum of bytes after 0x7E)
 };
 

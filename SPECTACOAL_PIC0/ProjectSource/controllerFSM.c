@@ -60,7 +60,7 @@ static uint32_t Curr_AD_Val[2];
 // variables for the wireless communication
 static uint8_t boat_selected = 5; // default to boat 6
 static uint8_t max_boat_number = 6;
-const static uint8_t boat_addresses_LSB[6] = {0x81, 0x82, 0x83, 0x84, 0x85, 0x86};
+const static uint8_t boat_addresses_LSB[6] = {0x81, 0x82, 0x83, 0x84, 0x85, 0x87}; //TODO: Might need to change back to 0x86
 
 /*
 uint8_t txFrame[] = {
