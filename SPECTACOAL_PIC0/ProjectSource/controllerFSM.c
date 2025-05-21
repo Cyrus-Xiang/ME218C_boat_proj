@@ -108,6 +108,10 @@ const uint8_t seg_table[11] = {
 static uint16_t PW_range_us;
 static uint16_t PulseWidth_servo_us;
 extern uint8_t powerByte; // set in comm service
+
+//variables for LED status indicator
+#define charge_indicator_LED LATBbits.LATB2
+#define paired_indicator_LED LATBbits.LATB3
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -134,6 +138,13 @@ bool InitcontrollerFSM(uint8_t Priority)
   MyPriority = Priority;
   // put us into the Initial PseudoState
   CurrentState = Idle_s;
+  // configure LEDs for status display
+  TRISBbits.TRISB2 = 0; // charging state indicator LED
+  ANSELBbits.ANSB2 = 0; 
+  charge_indicator_LED = 0; // turn off the LED
+  TRISBbits.TRISB3 = 0; // paired or not indicator LED
+  ANSELBbits.ANSB3 = 0; // digital pin
+  paired_indicator_LED = 0; // turn off the LED
   // configure pins and ADC for X Y information of joysticks
   config_joystick_ADC();
   config_buttons();
@@ -282,6 +293,7 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
     if (ThisEvent.EventType == ES_BOAT_PAIRED)
     {
       CurrentState = DriveMode_s;
+      paired_indicator_LED = 1; // turn on the LED
       enterDriveMode_s();
       DB_printf("Pairing successful, entering Drive Mode\n");
     }
@@ -315,6 +327,7 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
     if (ThisEvent.EventType == ES_IMU_RIGHT_SIDE_UP)
     {
       CurrentState = DriveMode_s;
+      charge_indicator_LED = 0; // turn off the LED
       enterDriveMode_s();
       DB_printf("switch from ChargeMode to DriveMode\n");
     }
@@ -451,5 +464,6 @@ static void enterChargeMode_s(void)
   txFrame[joy_x_byte] = joy_stick_neutral_msg; // set joystick values to neutral
   txFrame[joy_y_byte] = joy_stick_neutral_msg; // set joystick values to neutral
   txFrame[buttons_byte] = 0b00000000;          // set all button bits to 0
+  charge_indicator_LED = 1; // turn on the LED
   return;
 }
