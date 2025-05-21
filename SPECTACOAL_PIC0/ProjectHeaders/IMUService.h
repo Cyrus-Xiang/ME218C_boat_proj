@@ -9,7 +9,17 @@
 #define ServIMU_H
 
 #include "ES_Types.h"
+typedef struct {
+    int16_t x;
+    int16_t y;
+    int16_t z;
+} AccelData_t;
 
+typedef struct {
+    int16_t x;
+    int16_t y;
+    int16_t z;
+} GyroData_t;
 // Public Function Prototypes
 
 bool InitIMUService(uint8_t Priority);

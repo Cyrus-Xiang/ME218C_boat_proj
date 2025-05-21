@@ -35,23 +35,32 @@
 /* prototypes for private functions for this service.They should be functions
    relevant to the behavior of this service
 */
+
 static void configSPI(void);
 static void LSM6DS33_Init(void);
 static uint8_t LSM6DS33_ReadReg(uint8_t reg_addr);
 static int16_t LSM6DS33_ReadZAccel(void);
+static AccelData_t LSM6DS33_ReadAccelXYZ(void);
+static GyroData_t LSM6DS33_ReadGyroXYZ(void);
 /*---------------------------- Module Variables ---------------------------*/
 // with the introduction of Gen2, we need a module level Priority variable
 static uint8_t MyPriority;
 #define pbclk 20000000 // 20MHz
-#define IMU_read_interval 500
+#define IMU_read_interval 200
 #define IMU_boot_interval 1500
 #define OUTZ_L_XL 0x2C
 #define OUTZ_H_XL 0x2D
 #define CTRL1_XL 0x10
 #define CTRL2_G 0x11
-#define ACCEL_104HZ_2G 0b01000000  // ODR=104 Hz, FS=2g
-
+#define CTRL3_C 0x12
+#define SW_RESET 0x01
+#define ACCEL_104HZ_2G 0b01000000 // ODR=104 Hz, FS=2g
+#define WHO_AM_I 0x0F
+#define OUTX_L_G 0x22 // Starting address for gyro output registers
+#define STATUS_REG 0x1E
+#define OUTX_L_XL  0x28
 static uint32_t SPI_freq;
+
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -81,8 +90,7 @@ bool InitIMUService(uint8_t Priority)
    *******************************************/
   configSPI();
   LSM6DS33_Init();
-  ES_Timer_InitTimer(IMUUpdate_TIMER, IMU_boot_interval);
-
+  ES_Timer_InitTimer(IMUSetup_Delay_TIMER, 1000);
   // post the initial transition event
   ThisEvent.EventType = ES_INIT;
   if (ES_PostToService(MyPriority, ThisEvent) == true)
@@ -144,16 +152,71 @@ ES_Event_t RunIMUService(ES_Event_t ThisEvent)
   if (ThisEvent.EventType == ES_TIMEOUT && ThisEvent.EventParam == IMUUpdate_TIMER)
   {
     ES_Timer_InitTimer(IMUUpdate_TIMER, IMU_read_interval);
-    #define WHO_AM_I 0x0F
-    uint8_t id = LSM6DS33_ReadReg(WHO_AM_I);
-    DB_printf("IMU WHO_AM_I: %x\r\n", id);
-    // Read the Z-acceleration
-    int16_t z_accel = LSM6DS33_ReadZAccel();
-    DB_printf("Z-accel: %d\r\n", z_accel);
+    // uint8_t id = LSM6DS33_ReadReg(WHO_AM_I);
+    // DB_printf("IMU WHO_AM_I: 0x%x\r\n", id);
+    // Read the accelerations
+    AccelData_t accel = LSM6DS33_ReadAccelXYZ();
+    DB_printf("Accel X: %d, Y: %d, Z: %d\r\n", accel.x, accel.y, accel.z);
+    // read the gyroscope
+    GyroData_t gyro = LSM6DS33_ReadGyroXYZ();
+    DB_printf("Gyro X: %d, Y: %d, Z: %d\r\n", gyro.x, gyro.y, gyro.z);
+    // check the status of accelerometer
+    uint8_t status = LSM6DS33_ReadReg(0x1E);
+    DB_printf("STATUS_REG = 0x%x\r\n", status);
+    uint8_t ctrl1_val = LSM6DS33_ReadReg(0x10);
+    DB_printf("CTRL1_XL = 0x%x\r\n", ctrl1_val);
   }
-  else if (ThisEvent.EventType == ES_INIT)
+  else if (ThisEvent.EventType == ES_TIMEOUT && ThisEvent.EventParam == IMUSetup_Delay_TIMER)
   {
-    // Initialization code can go here if needed
+    DB_printf("accelerometer is enabled\r\n");
+    ES_Timer_InitTimer(IMUUpdate_TIMER, IMU_read_interval);
+    // === Enable Accel XYZ axes ===
+    LATAbits.LATA3 = 0;
+    SPI1BUF = 0x18 & 0x7F; // CTRL9_XL
+    while (!SPI1STATbits.SPIRBF)
+      ;
+    SPI1BUF;
+    SPI1BUF = 0x38; // Enable X, Y, Z axes
+    while (!SPI1STATbits.SPIRBF)
+      ;
+    SPI1BUF;
+    LATAbits.LATA3 = 1;
+
+    // === Configure Accelerometer ===
+    LATAbits.LATA3 = 0;
+    SPI1BUF = 0x10 & 0x7F; // CTRL1_XL
+    while (!SPI1STATbits.SPIRBF)
+      ;
+    SPI1BUF;
+    SPI1BUF = 0x60; // 416 Hz, ±2g
+    while (!SPI1STATbits.SPIRBF)
+      ;
+    SPI1BUF;
+    LATAbits.LATA3 = 1;
+
+    // === Enable Gyro XYZ axes ===
+    LATAbits.LATA3 = 0;
+    SPI1BUF = 0x19 & 0x7F; // CTRL10_C
+    while (!SPI1STATbits.SPIRBF)
+      ;
+    SPI1BUF;
+    SPI1BUF = 0x38; // Enable X, Y, Z axes
+    while (!SPI1STATbits.SPIRBF)
+      ;
+    SPI1BUF;
+    LATAbits.LATA3 = 1;
+
+    // === Configure Gyroscope ===
+    LATAbits.LATA3 = 0;
+    SPI1BUF = 0x11 & 0x7F; // CTRL2_G
+    while (!SPI1STATbits.SPIRBF)
+      ;
+    SPI1BUF;
+    SPI1BUF = 0x60; // 416 Hz, ±250 dps
+    while (!SPI1STATbits.SPIRBF)
+      ;
+    SPI1BUF;
+    LATAbits.LATA3 = 1;
   }
   else
   {
@@ -167,7 +230,7 @@ ES_Event_t RunIMUService(ES_Event_t ThisEvent)
  ***************************************************************************/
 static void configSPI(void)
 {
-    // Step 1: Disable SPI Module
+  // Step 1: Disable SPI Module
   SPI1CONbits.ON = 0;
   // Step 0: TRIS and0000 ANSEL and mapping
   // B14 is SPI clock
@@ -175,7 +238,7 @@ static void configSPI(void)
   TRISBbits.TRISB14 = 0;
   // A3 is CS pin
   TRISAbits.TRISA3 = 0;
-  LATAbits.LATA3= 1; // Deassert CS
+  LATAbits.LATA3 = 1; // Deassert CS
   // B5 is SDI
   TRISBbits.TRISB5 = 1;
   SDI1R = 0b0001; // Map SDI1 to RB5
@@ -188,7 +251,7 @@ static void configSPI(void)
   // Step 3: Enable Enhanced Buffer
   SPI1CONbits.ENHBUF = 0;
   // Step 4: Set Baudrate
-  SPI1BRG = 49;                            // for 200kHz SPI freq we use SPI1BRG = 49
+  SPI1BRG = 49;                           // for 200kHz SPI freq we use SPI1BRG = 49
   SPI_freq = pbclk / (2 * (SPI1BRG + 1)); // SPI clock frequency
   DB_printf("SPI clock frequency: %d\r\n", SPI_freq);
   // Step 5: Clear the SPIROV Bit
@@ -208,25 +271,24 @@ static void configSPI(void)
 }
 static void LSM6DS33_Init(void)
 {
-  LATAbits.LATA3 = 0; // CS low
-
-  // Send register address with MSB = 0 (write)
-  SPI1BUF = CTRL1_XL & 0x7F;
-  while (!SPI1STATbits.SPIRBF);
-  SPI1BUF; // clear dummy
-
-  // Send configuration byte
-  SPI1BUF = ACCEL_104HZ_2G;
-  while (!SPI1STATbits.SPIRBF);
-  SPI1BUF; // clear dummy
-
-  LATAbits.LATA3 = 1; // CS high
+  LATAbits.LATA3 = 0;
+  SPI1BUF = CTRL3_C & 0x7F; // the 0x7F clears the MSB to enable write mode
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  SPI1BUF;
+  SPI1BUF = SW_RESET;
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  SPI1BUF;
+  LATAbits.LATA3 = 1;
+  DB_printf("IMU is reset\r\n");
 }
 uint8_t LSM6DS33_ReadReg(uint8_t reg_addr)
 {
   LATAbits.LATA3 = 0;        // CS low
   SPI1BUF = reg_addr | 0x80; // MSB=1 for read
-  while (!SPI1STATbits.SPIRBF);//no new byte received yet
+  while (!SPI1STATbits.SPIRBF)
+    ;      // no new byte received yet
   SPI1BUF; // dummy read
 
   SPI1BUF = 0x00;
@@ -259,5 +321,94 @@ int16_t LSM6DS33_ReadZAccel(void)
 
   return (int16_t)((z_h << 8) | z_l);
 }
+AccelData_t LSM6DS33_ReadAccelXYZ(void)
+{
+      AccelData_t data;
+
+    // Step 1: Wait for XLDA bit to be set
+    while (!(LSM6DS33_ReadReg(STATUS_REG) & 0x01));
+
+    // Step 2: Begin sequential reads
+    LATAbits.LATA3 = 0;
+    SPI1BUF = OUTX_L_XL | 0x80; // Start from 0x28, MSB=1 for read
+    while (!SPI1STATbits.SPIRBF); SPI1BUF;
+
+    // Read X_L and X_H
+    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t x_l = SPI1BUF;
+    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t x_h = SPI1BUF;
+
+    // Read Y_L and Y_H
+    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t y_l = SPI1BUF;
+    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t y_h = SPI1BUF;
+
+    // Read Z_L and Z_H
+    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t z_l = SPI1BUF;
+    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t z_h = SPI1BUF;
+
+    LATAbits.LATA3 = 1;
+
+    data.x = ((int16_t)x_h << 8) | x_l;
+    data.y = ((int16_t)y_h << 8) | y_l;
+    data.z = ((int16_t)z_h << 8) | z_l;
+
+    return data;
+}
+
+GyroData_t LSM6DS33_ReadGyroXYZ(void)
+{
+  GyroData_t data;
+
+  LATAbits.LATA3 = 0; // CS low
+
+  SPI1BUF = OUTX_L_G | 0xC0; // Read from 0x22 with auto-increment
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  SPI1BUF; // Dummy read
+
+  // Read X_L
+  SPI1BUF = 0x00;
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  uint8_t x_l = SPI1BUF;
+
+  // Read X_H
+  SPI1BUF = 0x00;
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  uint8_t x_h = SPI1BUF;
+
+  // Read Y_L
+  SPI1BUF = 0x00;
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  uint8_t y_l = SPI1BUF;
+
+  // Read Y_H
+  SPI1BUF = 0x00;
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  uint8_t y_h = SPI1BUF;
+
+  // Read Z_L
+  SPI1BUF = 0x00;
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  uint8_t z_l = SPI1BUF;
+
+  // Read Z_H
+  SPI1BUF = 0x00;
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  uint8_t z_h = SPI1BUF;
+
+  LATAbits.LATA3 = 1; // CS high
+
+  data.x = ((int16_t)x_h << 8) | x_l;
+  data.y = ((int16_t)y_h << 8) | y_l;
+  data.z = ((int16_t)z_h << 8) | z_l;
+
+  return data;
+}
+
 /*------------------------------- Footnotes -------------------------------*/
 /*------------------------------ End of file ------------------------------*/
