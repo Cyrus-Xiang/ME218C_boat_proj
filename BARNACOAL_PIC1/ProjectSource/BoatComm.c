@@ -49,6 +49,8 @@
 #define FRAME_LEN_RX 13
 #define FRAME_LEN_TX 10
 #define IS_PAIRED 0xFF
+#define JOYSTICK_IDLE 0x7F
+#define BUTTON_IDLE 0x00
 #define NUM_PAIRING_MESSAGE 5
 
 static uint8_t txFrame[FRAME_LEN_TX] = {
@@ -222,22 +224,32 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
           case 0x00: // Driving
           {
             if (isPaired) {
-              ES_Event_t commandEvent;
-              commandEvent.EventType = ES_COMMAND;
-              PostDrivetrainService(commandEvent);
-              PostPowerService(commandEvent);
-              DB_printf("Post ES_COMMAND to BoatFSMs\r\n");
-              DB_printf("buttonByte = %x\r\n", buttonByte);
-              // Handle button messages
-              if (buttonByte & (1 << 0)) { // Bit 0 is set, post ES_DUMP
-                ES_Event_t dumpEvent;
-                dumpEvent.EventType = ES_DUMP;
-                PostDrivetrainService(dumpEvent);
-                PostPowerService(dumpEvent);
-                DB_printf("Post ES_DUMP to BoatFSMs\r\n");
-              }
-              if (buttonByte & (1 << 1)) { // Bit 1 is set, Do nothing
-                // Since no anchor on our boat, do nothing
+              if (buttonByte == BUTTON_IDLE && joystickOneByte == JOYSTICK_IDLE
+                  && joystickTwoByte == JOYSTICK_IDLE) {
+                // post idle event
+                ES_Event_t idleEvent;
+                idleEvent.EventType = ES_IDLE;
+                PostDrivetrainService(idleEvent);
+                PostPowerService(idleEvent);
+              } 
+              else {
+                ES_Event_t commandEvent;
+                commandEvent.EventType = ES_COMMAND;
+                PostDrivetrainService(commandEvent);
+                PostPowerService(commandEvent);
+                DB_printf("Post ES_COMMAND to BoatFSMs\r\n");
+                DB_printf("buttonByte = %x\r\n", buttonByte);
+                // Handle button messages
+                if (buttonByte & (1 << 0)) { // Bit 0 is set, post ES_DUMP
+                  ES_Event_t dumpEvent;
+                  dumpEvent.EventType = ES_DUMP;
+                  PostDrivetrainService(dumpEvent);
+                  PostPowerService(dumpEvent);
+                  DB_printf("Post ES_DUMP to BoatFSMs\r\n");
+                }
+                if (buttonByte & (1 << 1)) { // Bit 1 is set, Do nothing
+                  // Since no anchor on our boat, do nothing
+                }
               }
             }
             else {

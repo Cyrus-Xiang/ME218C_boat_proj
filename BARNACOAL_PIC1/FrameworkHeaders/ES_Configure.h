@@ -269,6 +269,7 @@ typedef enum
   // BoatFSM Events
   ES_PAIRED,
   ES_UNPAIRED,
+  ES_IDLE,
   ES_COMMAND,
   ES_NOPWR,
   ES_CHARGE,
