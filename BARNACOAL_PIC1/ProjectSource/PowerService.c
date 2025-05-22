@@ -212,6 +212,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
               ES_Event_t Event2Post;
               Event2Post.EventType = ES_NOPWR;
               PostPowerService(Event2Post);
+              PostDrivetrainService(Event2Post);
               CurrentState = No_Power;
             }
           }
@@ -253,6 +254,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
               ES_Event_t Event2Post;
               Event2Post.EventType = ES_NOPWR;
               PostPowerService(Event2Post);
+              PostDrivetrainService(Event2Post);
               CurrentState = No_Power;
             }
           }

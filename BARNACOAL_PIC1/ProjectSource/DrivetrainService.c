@@ -57,6 +57,10 @@
 
 #define TURN_WEIGHT 1/4
 
+#define VELOCITY joystickOneByte
+#define OMEGA joystickTwoByte
+#define NEUTRAL 127
+
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this machine.They should be functions
    relevant to the behavior of this state machine
@@ -167,6 +171,7 @@ bool InitDrivetrainService(uint8_t Priority)
   OC3RS = PR;
   OC4RS = PR;
   
+  PWMUpdate(NEUTRAL, NEUTRAL);
   CurrentState = InitPState;
   // post the initial transition event
   ThisEvent.EventType = ES_INIT;
@@ -229,7 +234,6 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
     {
       if (ThisEvent.EventType == ES_INIT)    // only respond to ES_Init
       {
-        // CurrentState = Driving;
         CurrentState = Pairing;
       }
     }
@@ -239,6 +243,7 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
     {
       if(ThisEvent.EventType == ES_PAIRED)
       {
+        PWMUpdate(NEUTRAL, NEUTRAL);
         CurrentState = Idle;
         //PairingStateIndicator();
       }
@@ -251,12 +256,14 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
       {
         case ES_COMMAND:
         {
+          PWMUpdate(VELOCITY, OMEGA);
           CurrentState = Driving;
         }
         break;
 
         case ES_UNPAIRED:
         {
+          PWMUpdate(NEUTRAL, NEUTRAL);
           CurrentState = Pairing;
         }
         break;
@@ -269,13 +276,11 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
 
     case Driving:  
     {
-      Velocity = joystickOneByte;
-      Omega = joystickTwoByte;
       switch (ThisEvent.EventType)
       {
         case ES_COMMAND:
         {
-          PWMUpdate(Velocity, Omega);
+          PWMUpdate(VELOCITY, OMEGA);
         }
         break;
 
@@ -295,15 +300,39 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
 
         case ES_NOPWR:
         {
-          PWMUpdate(0, 0);
-          CurrentState = Idle;
+          PWMUpdate(NEUTRAL, NEUTRAL);
+          CurrentState = No_Power;
         }
         break;
 
         case ES_UNPAIRED:
         {
-          PWMUpdate(0, 0);
+          PWMUpdate(NEUTRAL, NEUTRAL);
           CurrentState = Pairing;
+        }
+        break;
+        
+        default:
+          break;
+      }
+    }
+    break;
+
+    case No_Power:  
+    {
+      switch (ThisEvent.EventType)
+      {
+        case ES_UNPAIRED:
+        {
+          PWMUpdate(NEUTRAL, NEUTRAL);
+          CurrentState = Pairing;
+        }
+        break;
+
+        case ES_CHARGE:
+        {
+          PWMUpdate(NEUTRAL, NEUTRAL);
+          CurrentState = Idle;
         }
         break;
         
