@@ -170,11 +170,9 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
     {
       switch (ThisEvent.EventType)
       {
-        case ES_COMMAND:  
+        case ES_UNPAIRED:  
         {  
-          ES_Timer_InitTimer(POWER_TIMER, DECHARGE_PERIOD);
-          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
-          CurrentState =  Power_On;
+          CurrentState = Pairing;
         }
         break;
 
@@ -185,6 +183,13 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
         }
         break;
 
+        case ES_COMMAND:  
+        {  
+          ES_Timer_InitTimer(POWER_TIMER, DECHARGE_PERIOD);
+          CurrentState = Power_On;
+        }
+        break;
+
         case ES_CHARGE:
         {
           Power += 6;
@@ -192,18 +197,28 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
           CurrentState = Recharging;
         }
 
-        // POWER_TIMER start in Power up state, but ES_TIMEOUT at idle state
-        case ES_TIMEOUT:  
+        case ES_NOPWR:
+        {
+          CurrentState = No_Power;
+        }
+
+        case ES_TIMEOUT:    // POWER_TIMER start in Power_On state, but ES_TIMEOUT at idle state
         {  
           if (ThisEvent.EventParam == POWER_TIMER)
           {
             Power -= 1;
-            if (Power == 0)
+            if (Power == NO_POWER)
             {
+              ES_Event_t Event2Post;
+              Event2Post.EventType = ES_NOPWR;
+              PostPowerService(Event2Post);
               CurrentState = No_Power;
             }
           }
         }
+        break;
+
+        default:
         break;
       }
     }
@@ -213,9 +228,14 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
     {
       switch (ThisEvent.EventType)
       {
+        case ES_COMMAND:
+        {
+          ES_Timer_InitTimer(POWER_TIMER, DECHARGE_PERIOD);
+        }
+        break;
+
         case ES_CHARGE:  
         {  
-          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
           Power += 6;
           Power = (Power<FULL_POWER)?Power:FULL_POWER; // Limit power to FULL_POWER
           CurrentState = Recharging;
@@ -228,23 +248,14 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
           {
             ES_Timer_InitTimer(POWER_TIMER, DECHARGE_PERIOD);
             Power -= 1;
-            if (Power == 0)
+            if (Power == NO_POWER)
             {
+              ES_Event_t Event2Post;
+              Event2Post.EventType = ES_NOPWR;
+              PostPowerService(Event2Post);
               CurrentState = No_Power;
             }
           }
-          /*
-          if (ThisEvent.EventParam == IDLE_TIMER)
-          {
-            CurrentState = Idle;
-          }
-          */
-        }
-        break;
-
-        case ES_COMMAND:
-        {
-          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
         }
         break;
 
@@ -252,6 +263,17 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
         {
           CurrentState = Idle;
         }
+
+        case ES_NOPWR:
+        {
+          CurrentState = No_Power;
+        }
+
+        case ES_UNPAIRED:  
+        {  
+          CurrentState = Pairing;
+        }
+        break;
 
         default:
           break;
@@ -267,7 +289,6 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
         {  
           Power += 6;
           Power = (Power<FULL_POWER)?Power:FULL_POWER; // Limit power to FULL_POWER
-          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
         }
         break;
 
@@ -275,7 +296,6 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
         {
           ES_Timer_InitTimer(POWER_TIMER, DECHARGE_PERIOD);
           CurrentState = Power_On;
-          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
         }
         break;
 
@@ -283,6 +303,12 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
         {
           CurrentState = Idle;
         }
+
+        case ES_UNPAIRED:  
+        {  
+          CurrentState = Pairing;
+        }
+        break;
 
         default:
           break;
@@ -292,13 +318,25 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
 
     case No_Power:       
     {
-      if (ThisEvent.EventType == ES_CHARGE) {
-        Power += 6;
-        Power = (Power<FULL_POWER)?Power:FULL_POWER; // Limit power to FULL_POWER
-        CurrentState = Recharging;
-      }
-      else {
-        DB_printf("NO CHARGE!!! CHARGE IMMEDIATELY\r\n");
+      DB_printf("NO CHARGE!!! CHARGE IMMEDIATELY\r\n");
+      switch (ThisEvent.EventType)
+      {
+        case ES_CHARGE:  
+        {  
+          Power += 6;
+          Power = (Power<FULL_POWER)?Power:FULL_POWER; // Limit power to FULL_POWER
+          CurrentState = Recharging;
+        }
+        break;
+
+        case ES_UNPAIRED:  
+        {  
+          CurrentState = Pairing;
+        }
+        break;
+
+        default:
+          break;
       }
     }
     break;
