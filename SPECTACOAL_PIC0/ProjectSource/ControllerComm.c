@@ -44,8 +44,13 @@
 #define ONE_SEC 1000
 #define ONEFIFTH_SEC (ONE_SEC / 5)
 #define FRAME_LEN_TX 13
-#define FRAME_LEN_RX 13
+#define FRAME_LEN_RX 10
 #define IS_PAIRED_CHARGE 0xFF
+
+#define NO_BUTTON_PRESSED 0x00
+#define DUMP_BUTTON_PRESSED 0x01
+#define ANCHOR_BUTTON_PRESSED 0x02
+#define BOTH_BUTTON_PRESSED 0x03
 
 uint8_t txFrame[] = {
   0x7E,          // Start delimiter
@@ -195,7 +200,9 @@ ES_Event_t RunControllerComm(ES_Event_t ThisEvent)
       DB_printf("\rES_INIT received in Service %d\r\n", MyPriority);
     }
     break; 
+
     case ES_TIMEOUT:
+    {
       if (ThisEvent.EventParam == CTRLCOMM_TIMER) { 
         // 1. Build and send txFrame if targetAddress has been modified
         //printTxFrame();
@@ -206,42 +213,37 @@ ES_Event_t RunControllerComm(ES_Event_t ThisEvent)
               // User pressed 'sent' button, keep sending pairing request
               targetAddressMSB = txFrame[5];
               targetAddressLSB = txFrame[6];
-              SendFrame(txFrame, FRAME_LEN_TX);
+              SendFrame();
               //DB_printf("Sent pairing request\r\n");
-              // printTxFrame();
             }
             else {
               // Wait until user press 'sent' button
-              // Ignore commands except pairing 
             }
           }
           else {
-            // User hasn't select boat to pair to
+            // User hasn't select which boat to pair to
           }
         }
         else { // isPaired
-          if (txFrame[11] != 0x00) {
-            // Either anchor/dump button pressed, or both.
-//            if (!isbuttonPressed) { //hasn't sent
-//              
-//            }
-            
+          SendFrame();
+          if (txFrame[11] != NO_BUTTON_PRESSED) {
+            txFrame[11] = NO_BUTTON_PRESSED; // Reset buttonByte once sent
           }
-          SendFrame(txFrame, FRAME_LEN_TX);
-          printTxFrame();
-          DB_printf("Sent Frame\r\n");
+          // DB_printf("Sent Frame\r\n");
         }
         // 2. Restart 200ms timer
         ES_Timer_InitTimer(CTRLCOMM_TIMER, ONEFIFTH_SEC);
       }
+    }
     break;
+
     case ES_PACKET_IN: // Received packet from Boat
       ParseAPIFrame(); // Sanity check and update sourceAddress and powerByte
       //DB_printf("\rsourceAddressMSB = %d\r\n", sourceAddressMSB);
       //DB_printf("\rsourceAddressLSB = %d\r\n", sourceAddressLSB);
       DB_printf("\rpowerByte = %d\r\n", powerByte);
       if (isPaired) {
-        DB_printf("Received a packet from boat\r\n");
+        //DB_printf("Received a packet from boat\r\n");
         // No further action required, controllerFSM will read updated powerByte by itself
       }
       else { // if not paired

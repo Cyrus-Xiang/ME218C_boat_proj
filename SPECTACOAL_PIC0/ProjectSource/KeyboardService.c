@@ -137,32 +137,34 @@ ES_Event_t RunKeyboardService(ES_Event_t ThisEvent)
     case 'b':
       for (size_t i = 0; i < 13; i++)
       {
-        DB_printf("txFrame[%d] = %d\r\n", i, txFrame[i]);
+        DB_printf("txFrame[%d] = 0x%x\r\n", i, txFrame[i]);
       }
       break;
     case 'c':
-      DB_printf("%d\n",check_sum_byte);
+      // empty
       break;
     case 'd':
-      Event2Post.EventType = ES_IMU_ORIENTATION_SWITCH;
-      Event2Post.EventParam = 0;
+      Event2Post.EventType = ES_IMU_RIGHT_SIDE_UP;
       PostcontrollerFSM(Event2Post);
-      DB_printf("Keyboard service posts ES_IMU_ORIENTATION_SWITCH with eventparam = 0 to controllerFSM\n");
+      DB_printf("Keyboard service posts ES_IMU_RIGHT_SIDE_UP to controllerFSM\n");
       break;
     case 'e':
-      Event2Post.EventType = ES_IMU_ORIENTATION_SWITCH;
-      Event2Post.EventParam = 1;
+      Event2Post.EventType = ES_IMU_UP_SIDE_DOWN;
       PostcontrollerFSM(Event2Post);
-      DB_printf("Keyboard service posts ES_IMU_ORIENTATION_SWITCH with eventparam = 1 to controllerFSM\n");
+      DB_printf("Keyboard service posts ES_IMU_UP_SIDE_DOWN to controllerFSM\n");
       break;
     case 'f':
-      /* code */
+      Event2Post.EventType = ES_IMU_IS_CHARGING;
+      PostcontrollerFSM(Event2Post);
+      DB_printf("Keyboard service posts ES_IMU_IS_CHARGING to controllerFSM\n");
       break;
     case 'g':
-      /* code */
+      Event2Post.EventType = ES_IMU_IS_NOT_CHARGING;
+      PostcontrollerFSM(Event2Post);
+      DB_printf("Keyboard service posts ES_IMU_IS_NOT_CHARGING to controllerFSM\n");
       break;
     case 'h':
-      /* code */
+
       break;
     case 'i':
 
