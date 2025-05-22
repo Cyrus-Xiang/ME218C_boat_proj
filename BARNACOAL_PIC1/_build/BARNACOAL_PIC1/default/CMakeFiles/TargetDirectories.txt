@@ -1,0 +1,5 @@
+D:/Course/ME218C_Smart Product Design Practice/Project/ME218C_boat_proj/BARNACOAL_PIC1/_build/BARNACOAL_PIC1/default/CMakeFiles/BARNACOAL_PIC1_default_default_XC32_compile.dir
+D:/Course/ME218C_Smart Product Design Practice/Project/ME218C_boat_proj/BARNACOAL_PIC1/_build/BARNACOAL_PIC1/default/CMakeFiles/BARNACOAL_PIC1_default_default.elf.dir
+D:/Course/ME218C_Smart Product Design Practice/Project/ME218C_boat_proj/BARNACOAL_PIC1/_build/BARNACOAL_PIC1/default/CMakeFiles/BARNACOAL_PIC1_default_Bin2Hex.dir
+D:/Course/ME218C_Smart Product Design Practice/Project/ME218C_boat_proj/BARNACOAL_PIC1/_build/BARNACOAL_PIC1/default/CMakeFiles/edit_cache.dir
+D:/Course/ME218C_Smart Product Design Practice/Project/ME218C_boat_proj/BARNACOAL_PIC1/_build/BARNACOAL_PIC1/default/CMakeFiles/rebuild_cache.dir
