@@ -164,7 +164,7 @@ bool InitDrivetrainService(uint8_t Priority)
   OC4R = PR;
   OC1RS = PR*PWM_OFF/100;
   OC2RS = PR*PWM_OFF/100;
-  OC3RS = PR;
+  OC3RS = PR*SERVO_CLOSE_POS/100;
   OC4RS = PR;
   
   CurrentState = InitPState;
@@ -237,6 +237,7 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
 
     case Pairing:
     {
+      PWMUpdate(127, 127); // Disable all actuators
       if(ThisEvent.EventType == ES_PAIRED)
       {
         CurrentState = Idle;
@@ -247,11 +248,48 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
 
     case Idle:
     {
+      PWMUpdate(127, 127); // Disable all actuators
       switch (ThisEvent.EventType)
       {
+        case ES_IDLE:
+        {
+          CurrentState = Idle;
+        }
+        break; 
+
         case ES_COMMAND:
         {
-          CurrentState = Driving;
+          if (Power > 0) {
+            Velocity = joystickOneByte;
+            Omega = joystickTwoByte;
+            PWMUpdate(Velocity, Omega);
+            CurrentState = Driving;
+          }
+          else {
+            DB_printf("Error: DrivetrainService NO Power!!!\r\n");
+          }
+        }
+        break;
+
+        case ES_DUMP:
+        {
+          DB_printf("Detect ES_DUMP in Idle State\r\n");
+          if (Power > 0) {
+            DumpState = (DumpState + 1) % 2;
+            DB_printf("DumpState is = %d\r\n", DumpState);
+            if(DumpState == 1)
+            {
+              OC3RS = PR*SERVO_OPEN_POS/100;
+            }
+            if(DumpState == 0)
+            {
+              OC3RS = PR*SERVO_CLOSE_POS/100;
+            }
+            CurrentState = Driving;
+          }
+          else {
+            DB_printf("Error: DrivetrainService NO Power!!!\r\n");
+          }
         }
         break;
 
@@ -269,40 +307,58 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
 
     case Driving:  
     {
-      Velocity = joystickOneByte;
-      Omega = joystickTwoByte;
       switch (ThisEvent.EventType)
       {
+        case ES_IDLE:
+        {
+          CurrentState = Idle;
+        }
+        break; 
+
         case ES_COMMAND:
         {
-          PWMUpdate(Velocity, Omega);
+          if (Power > 0) {
+            Velocity = joystickOneByte;
+            Omega = joystickTwoByte;
+            PWMUpdate(Velocity, Omega);
+            CurrentState = Driving;
+          }
+          else {
+            DB_printf("Error: DrivetrainService NO Power!!!\r\n");
+          }
         }
         break;
 
         case ES_DUMP:
         {
-          DumpState = (DumpState + 1) % 2;
-          if(DumpState == 1)
-          {
-            OC3RS = PR*SERVO_OPEN_POS/100;
+            DB_printf("Detect ES_DUMP in Driving State\r\n");
+          if (Power > 0) {
+            DumpState = (DumpState + 1) % 2;
+            DB_printf("DumpState is = %d\r\n", DumpState);
+            if(DumpState == 1)
+            {
+              OC3RS = PR*SERVO_OPEN_POS/100;
+            }
+            if(DumpState == 0)
+            {
+              OC3RS = PR*SERVO_CLOSE_POS/100;
+            }
+            CurrentState = Driving;
           }
-          if(DumpState == 0)
-          {
-            OC3RS = PR*SERVO_CLOSE_POS/100;
+          else {
+            DB_printf("Error: DrivetrainService NO Power!!!\r\n");
           }
         }
         break;
 
         case ES_NOPWR:
         {
-          PWMUpdate(0, 0);
           CurrentState = Idle;
         }
         break;
 
         case ES_UNPAIRED:
         {
-          PWMUpdate(0, 0);
           CurrentState = Pairing;
         }
         break;
@@ -343,7 +399,7 @@ void PWMUpdate(uint8_t Velocity, uint8_t Omega)
   {
     ScaledRight = 0;
   }
-  
+
   uint8_t PWMLeft = PWM_MIN + (PWM_MAX - PWM_MIN) * ScaledLeft/255;
   uint8_t PWMRight = PWM_MIN + (PWM_MAX - PWM_MIN) * ScaledRight/255;
   OC1RS = PR * PWMLeft/100;

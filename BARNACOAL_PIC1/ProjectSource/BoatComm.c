@@ -218,7 +218,7 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
 
         // 2. Parse the incoming API Packet, update extern byte variables
         ParseAPIFrame();
-        DB_printf("statusByte = %d\r\n", statusByte);
+        // DB_printf("statusByte = %d\r\n", statusByte);
         switch (statusByte) 
         {
           case 0x00: // Driving
@@ -231,6 +231,7 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
                 idleEvent.EventType = ES_IDLE;
                 PostDrivetrainService(idleEvent);
                 PostPowerService(idleEvent);
+                DB_printf("Post ES_IDLE to BoatFSMs\r\n");
               } 
               else {
                 ES_Event_t commandEvent;
@@ -238,7 +239,9 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
                 PostDrivetrainService(commandEvent);
                 PostPowerService(commandEvent);
                 DB_printf("Post ES_COMMAND to BoatFSMs\r\n");
-                DB_printf("buttonByte = %x\r\n", buttonByte);
+                DB_printf("joystickOneByte = %x\r\n", joystickOneByte);
+                DB_printf("joystickTwoByte = %x\r\n", joystickTwoByte);
+                // DB_printf("buttonByte = %x\r\n", buttonByte);
                 // Handle button messages
                 if (buttonByte & (1 << 0)) { // Bit 0 is set, post ES_DUMP
                   ES_Event_t dumpEvent;
@@ -246,6 +249,7 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
                   PostDrivetrainService(dumpEvent);
                   PostPowerService(dumpEvent);
                   DB_printf("Post ES_DUMP to BoatFSMs\r\n");
+                  DB_printf("buttonByte = %x\r\n", buttonByte);
                 }
                 if (buttonByte & (1 << 1)) { // Bit 1 is set, Do nothing
                   // Since no anchor on our boat, do nothing
@@ -264,7 +268,7 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
             if (isPaired) {
               ES_Event_t chargeEvent;
               chargeEvent.EventType = ES_CHARGE; 
-              PostDrivetrainService(chargeEvent);
+              // PostDrivetrainService(chargeEvent);
               PostPowerService(chargeEvent);
             }
             else {
