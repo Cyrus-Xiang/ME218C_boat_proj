@@ -238,7 +238,7 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
     case Pairing:
     {
       PWMUpdate(127, 127); // Disable all actuators
-      if(ThisEvent.EventType == ES_PAIRED)
+      if(ThisEvent.EventType == ES_PAIRED)            
       {
         CurrentState = Idle;
         //PairingStateIndicator();
@@ -381,30 +381,37 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
 
 void PWMUpdate(uint8_t Velocity, uint8_t Omega)
 {
-  ScaledLeft = Velocity - (Omega - 127) * TURN_WEIGHT;
-  ScaledRight = Velocity + (Omega - 127) * TURN_WEIGHT;
-  if(ScaledLeft > 255)
-  {
-    ScaledLeft = 255;
+  if (Velocity == 127 && Omega == 127) {
+    OC1RS = PR * PWM_OFF/100;
+    OC2RS = PR * PWM_OFF/100;
+    return;
   }
-  if(ScaledRight > 255)
-  {
-    ScaledRight = 255;
-  }
-  if(ScaledLeft < 0)
-  {
-    ScaledLeft = 0;
-  }
-  if(ScaledRight < 0)
-  {
-    ScaledRight = 0;
-  }
+  else {
+    ScaledLeft = Velocity - (Omega - 127) * TURN_WEIGHT;
+    ScaledRight = Velocity + (Omega - 127) * TURN_WEIGHT;
+    if(ScaledLeft > 255)
+    {
+      ScaledLeft = 255;
+    }
+    if(ScaledRight > 255)
+    {
+      ScaledRight = 255;
+    }
+    if(ScaledLeft < 0)
+    {
+      ScaledLeft = 0;
+    }
+    if(ScaledRight < 0)
+    {
+      ScaledRight = 0;
+    }
 
-  uint8_t PWMLeft = PWM_MIN + (PWM_MAX - PWM_MIN) * ScaledLeft/255;
-  uint8_t PWMRight = PWM_MIN + (PWM_MAX - PWM_MIN) * ScaledRight/255;
-  OC1RS = PR * PWMLeft/100;
-  OC2RS = PR * PWMRight/100;
-  // DB_printf("PWMRight = %d\r\n", PWMRight);
+    uint8_t PWMLeft = PWM_MIN + (PWM_MAX - PWM_MIN) * ScaledLeft/255;
+    uint8_t PWMRight = PWM_MIN + (PWM_MAX - PWM_MIN) * ScaledRight/255;
+    OC1RS = PR * PWMLeft/100;
+    OC2RS = PR * PWMRight/100;
+    // DB_printf("PWMRight = %d\r\n", PWMRight);
+  }
 }
 
 uint8_t BoundaryCheck(uint8_t Value)

@@ -60,7 +60,7 @@ static uint32_t Curr_AD_Val[2];
 // variables for the wireless communication
 static uint8_t boat_selected = 5; // default to boat 6
 static uint8_t max_boat_number = 6;
-const static uint8_t boat_addresses_LSB[6] = {0x81, 0x82, 0x83, 0x84, 0x85, 0x87}; //TODO: Might need to change back to 0x86
+const static uint8_t boat_addresses_LSB[6] = {0x81, 0x82, 0x83, 0x84, 0x85, 0x86}; 
 
 /*
 uint8_t txFrame[] = {
@@ -216,8 +216,12 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
       // read the joystick values
       ADC_MultiRead(Curr_AD_Val);
       // update the joystick values in the txFrame
-      txFrame[joy_x_byte] = (uint8_t)(Curr_AD_Val[0] >> 2); // right shift to get 8 bits (divide by 4)
-      txFrame[joy_y_byte] = (uint8_t)(Curr_AD_Val[1] >> 2); // right shift to get 8 bits (divide by 4)
+      //txFrame[joy_x_byte] = (uint8_t)(Curr_AD_Val[0] >> 2); // right shift to get 8 bits (divide by 4)
+      //txFrame[joy_y_byte] = (uint8_t)(Curr_AD_Val[1] >> 2); // right shift to get 8 bits (divide by 4)
+
+      //TODO: Debugging
+      txFrame[joy_x_byte] = 200;
+      txFrame[joy_y_byte] = 200;
       // DB_printf("joystick X: %d Y: %d\n", txFrame[joy_x_byte], txFrame[joy_y_byte]);
       ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval);
     }
