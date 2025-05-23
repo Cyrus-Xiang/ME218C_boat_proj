@@ -1,0 +1,73 @@
+
+---
+events:
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Users/wilso/.mplab/app-finder/apps/cmake/v4.0.1/cmake-4.0.1-windows-x86_64/share/cmake-4.0/Modules/CMakeDetermineSystem.cmake:200 (message)"
+      - "CMakeLists.txt:17 (project)"
+    message: |
+      The target system is: Generic -  - 
+      The host system is: Windows - 10.0.26100 - 
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Users/wilso/.mplab/app-finder/apps/cmake/v4.0.1/cmake-4.0.1-windows-x86_64/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "C:/Users/wilso/.mplab/app-finder/apps/cmake/v4.0.1/cmake-4.0.1-windows-x86_64/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "C:/Users/wilso/.mplab/app-finder/apps/cmake/v4.0.1/cmake-4.0.1-windows-x86_64/share/cmake-4.0/Modules/CMakeDetermineCCompiler.cmake:123 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:17 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" succeeded.
+      Compiler: c:/Program Files/Microchip/xc32/v4.60/bin/xc32-gcc.exe 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      0
+      Warning: dinit optimization threshholds not set; dinit may not function
+      c:\\program files\\microchip\\xc32\\v4.60\\bin\\bin\\gcc\\pic32mx\\8.3.1\\..\\..\\..\\..\\bin/pic32m-ld.exe: warning: cannot find entry symbol _reset; defaulting to 000000009d000000
+      
+      
+      Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "a.out"
+      
+      The C compiler identification is GNU, found in:
+        D:/Course/ME218C_Smart Product Design Practice/Project/ME218C_boat_proj/BARNACOAL_PIC1/_build/BARNACOAL_PIC1/default/CMakeFiles/4.0.1/CompilerIdC/a.out
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Users/wilso/.mplab/app-finder/apps/cmake/v4.0.1/cmake-4.0.1-windows-x86_64/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "C:/Users/wilso/.mplab/app-finder/apps/cmake/v4.0.1/cmake-4.0.1-windows-x86_64/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "C:/Users/wilso/.mplab/app-finder/apps/cmake/v4.0.1/cmake-4.0.1-windows-x86_64/share/cmake-4.0/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:17 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+      Compiler: c:/Program Files/Microchip/xc32/v4.60/bin/xc32-g++.exe 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      0
+      Warning: dinit optimization threshholds not set; dinit may not function
+      c:\\program files\\microchip\\xc32\\v4.60\\bin\\bin\\gcc\\pic32mx\\8.3.1\\..\\..\\..\\..\\bin/pic32m-ld.exe: warning: cannot find entry symbol _reset; defaulting to 000000009d000000
+      
+      
+      Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "a.out"
+      
+      The CXX compiler identification is GNU, found in:
+        D:/Course/ME218C_Smart Product Design Practice/Project/ME218C_boat_proj/BARNACOAL_PIC1/_build/BARNACOAL_PIC1/default/CMakeFiles/4.0.1/CompilerIdCXX/a.out
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Users/wilso/.mplab/app-finder/apps/cmake/v4.0.1/cmake-4.0.1-windows-x86_64/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake:1230 (message)"
+      - "C:/Users/wilso/.mplab/app-finder/apps/cmake/v4.0.1/cmake-4.0.1-windows-x86_64/share/cmake-4.0/Modules/CMakeDetermineASMCompiler.cmake:139 (CMAKE_DETERMINE_COMPILER_ID_VENDOR)"
+      - "CMakeLists.txt:17 (project)"
+    message: |
+      Checking whether the ASM compiler is GNU using "--version" matched "(GNU assembler)|(GCC)|(Free Software Foundation)":
+      pic32m-gcc.exe (Microchip XC32 Compiler v4.60) 8.3.1 Build date: Feb 19 2025
+      Copyright (C) 2018 Free Software Foundation, Inc.
+      This is free software; see the source for copying conditions.  There is NO
+      warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+      
+...

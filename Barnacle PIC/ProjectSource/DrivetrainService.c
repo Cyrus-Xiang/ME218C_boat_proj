@@ -57,10 +57,6 @@
 
 #define TURN_WEIGHT 1/4
 
-#define VELOCITY joystickOneByte
-#define OMEGA joystickTwoByte
-#define NEUTRAL 127
-
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this machine.They should be functions
    relevant to the behavior of this state machine
@@ -168,10 +164,9 @@ bool InitDrivetrainService(uint8_t Priority)
   OC4R = PR;
   OC1RS = PR*PWM_OFF/100;
   OC2RS = PR*PWM_OFF/100;
-  OC3RS = PR*SERVO_CLOSE_POS/100;
+  OC3RS = PR;
   OC4RS = PR;
   
-  PWMUpdate(NEUTRAL, NEUTRAL);
   CurrentState = InitPState;
   // post the initial transition event
   ThisEvent.EventType = ES_INIT;
@@ -234,6 +229,7 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
     {
       if (ThisEvent.EventType == ES_INIT)    // only respond to ES_Init
       {
+        // CurrentState = Driving;
         CurrentState = Pairing;
       }
     }
@@ -241,10 +237,8 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
 
     case Pairing:
     {
-      PWMUpdate(127, 127); // Disable all actuators
-      if(ThisEvent.EventType == ES_PAIRED)            
+      if(ThisEvent.EventType == ES_PAIRED)
       {
-        PWMUpdate(NEUTRAL, NEUTRAL);
         CurrentState = Idle;
         //PairingStateIndicator();
       }
@@ -253,25 +247,16 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
 
     case Idle:
     {
-      PWMUpdate(127, 127); // Disable all actuators
       switch (ThisEvent.EventType)
       {
-        case ES_IDLE:
-        {
-          CurrentState = Idle;
-        }
-        break; 
-
         case ES_COMMAND:
         {
-          PWMUpdate(VELOCITY, OMEGA);
           CurrentState = Driving;
         }
         break;
 
         case ES_UNPAIRED:
         {
-          PWMUpdate(NEUTRAL, NEUTRAL);
           CurrentState = Pairing;
         }
         break;
@@ -284,77 +269,41 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
 
     case Driving:  
     {
+      Velocity = joystickOneByte;
+      Omega = joystickTwoByte;
       switch (ThisEvent.EventType)
       {
-        case ES_IDLE:
-        {
-          CurrentState = Idle;
-        }
-        break; 
-
         case ES_COMMAND:
         {
-          PWMUpdate(VELOCITY, OMEGA);
+          PWMUpdate(Velocity, Omega);
         }
         break;
 
         case ES_DUMP:
         {
-            DB_printf("Detect ES_DUMP in Driving State\r\n");
-          if (Power > 0) {
-            DumpState = (DumpState + 1) % 2;
-            DB_printf("DumpState is = %d\r\n", DumpState);
-            if(DumpState == 1)
-            {
-              OC3RS = PR*SERVO_OPEN_POS/100;
-            }
-            if(DumpState == 0)
-            {
-              OC3RS = PR*SERVO_CLOSE_POS/100;
-            }
-            CurrentState = Driving;
+          DumpState = (DumpState + 1) % 2;
+          if(DumpState == 1)
+          {
+            OC3RS = PR*SERVO_OPEN_POS/100;
           }
-          else {
-            DB_printf("Error: DrivetrainService NO Power!!!\r\n");
+          if(DumpState == 0)
+          {
+            OC3RS = PR*SERVO_CLOSE_POS/100;
           }
         }
         break;
 
         case ES_NOPWR:
         {
-          PWMUpdate(NEUTRAL, NEUTRAL);
-          CurrentState = No_Power;
-        }
-        break;
-
-        case ES_UNPAIRED:
-        {
-          PWMUpdate(NEUTRAL, NEUTRAL);
-          CurrentState = Pairing;
-        }
-        break;
-        
-        default:
-          break;
-      }
-    }
-    break;
-
-    case No_Power:  
-    {
-      switch (ThisEvent.EventType)
-      {
-        case ES_UNPAIRED:
-        {
-          PWMUpdate(NEUTRAL, NEUTRAL);
-          CurrentState = Pairing;
-        }
-        break;
-
-        case ES_CHARGE:
-        {
-          PWMUpdate(NEUTRAL, NEUTRAL);
+          PWMUpdate(127, 127);
           CurrentState = Idle;
+        }
+        break;
+
+        case ES_UNPAIRED:
+        {
+          PWMUpdate(127, 127);
+          CurrentState = Pairing;
         }
         break;
         
@@ -376,37 +325,30 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
 
 void PWMUpdate(uint8_t Velocity, uint8_t Omega)
 {
-  if (Velocity == 127 && Omega == 127) {
-    OC1RS = PR * PWM_OFF/100;
-    OC2RS = PR * PWM_OFF/100;
-    return;
+  ScaledLeft = Velocity - (Omega - 127) * TURN_WEIGHT;
+  ScaledRight = Velocity + (Omega - 127) * TURN_WEIGHT;
+  if(ScaledLeft > 255)
+  {
+    ScaledLeft = 255;
   }
-  else {
-    ScaledLeft = Velocity - (Omega - 127) * TURN_WEIGHT;
-    ScaledRight = Velocity + (Omega - 127) * TURN_WEIGHT;
-    if(ScaledLeft > 255)
-    {
-      ScaledLeft = 255;
-    }
-    if(ScaledRight > 255)
-    {
-      ScaledRight = 255;
-    }
-    if(ScaledLeft < 0)
-    {
-      ScaledLeft = 0;
-    }
-    if(ScaledRight < 0)
-    {
-      ScaledRight = 0;
-    }
-
-    uint8_t PWMLeft = PWM_MIN + (PWM_MAX - PWM_MIN) * ScaledLeft/255;
-    uint8_t PWMRight = PWM_MIN + (PWM_MAX - PWM_MIN) * ScaledRight/255;
-    OC1RS = PR * PWMLeft/100;
-    OC2RS = PR * PWMRight/100;
-    // DB_printf("PWMRight = %d\r\n", PWMRight);
+  if(ScaledRight > 255)
+  {
+    ScaledRight = 255;
   }
+  if(ScaledLeft < 0)
+  {
+    ScaledLeft = 0;
+  }
+  if(ScaledRight < 0)
+  {
+    ScaledRight = 0;
+  }
+  
+  uint8_t PWMLeft = PWM_MIN + (PWM_MAX - PWM_MIN) * ScaledLeft/255;
+  uint8_t PWMRight = PWM_MIN + (PWM_MAX - PWM_MIN) * ScaledRight/255;
+  OC1RS = PR * PWMLeft/100;
+  OC2RS = PR * PWMRight/100;
+  // DB_printf("PWMRight = %d\r\n", PWMRight);
 }
 
 uint8_t BoundaryCheck(uint8_t Value)
