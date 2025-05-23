@@ -168,6 +168,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
 
     case Idle:
     {
+      DB_printf("Entered Idle State\r\n");
       switch (ThisEvent.EventType)
       {
         case ES_UNPAIRED:  
@@ -195,12 +196,15 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
           Power += 6;
           Power = (Power<FULL_POWER)?Power:FULL_POWER; // Limit power to FULL_POWER
           CurrentState = Recharging;
+          DB_printf("ES_CHARGE in Idle State\r\n");
         }
+        break;
 
         case ES_NOPWR:
         {
           CurrentState = No_Power;
         }
+        break;
 
         case ES_TIMEOUT:    // POWER_TIMER start in Power_On state, but ES_TIMEOUT at idle state
         {  
@@ -227,6 +231,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
 
     case Power_On:       
     {
+      DB_printf("Entered Power_ON State\r\n");
       switch (ThisEvent.EventType)
       {
         case ES_COMMAND:
@@ -240,6 +245,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
           Power += 6;
           Power = (Power<FULL_POWER)?Power:FULL_POWER; // Limit power to FULL_POWER
           CurrentState = Recharging;
+          DB_printf("ES_CHARGE in Power_On State\r\n");
         }
         break;
 
@@ -265,11 +271,13 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
         {
           CurrentState = Idle;
         }
+        break;
 
         case ES_NOPWR:
         {
           CurrentState = No_Power;
         }
+        break;
 
         case ES_UNPAIRED:  
         {  
@@ -285,12 +293,14 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
 
     case Recharging:       
     {
+      DB_printf("Entered Recharging State\r\n");
       switch (ThisEvent.EventType)
       {
         case ES_CHARGE:  
         {  
           Power += 6;
           Power = (Power<FULL_POWER)?Power:FULL_POWER; // Limit power to FULL_POWER
+          DB_printf("ES_CHARGE in Recharging State\r\n");
         }
         break;
 
@@ -312,6 +322,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
         {
           CurrentState = Idle;
         }
+        break;
 
         case ES_UNPAIRED:  
         {  
