@@ -83,11 +83,11 @@
 // These are the definitions for Service 3
 #if NUM_SERVICES > 3
 // the header file with the public function prototypes
-#define SERV_3_HEADER "IMUService.h"
+#define SERV_3_HEADER "KeyboardService.h"
 // the name of the Init function
-#define SERV_3_INIT InitIMUService
+#define SERV_3_INIT InitKeyboardService
 // the name of the run function
-#define SERV_3_RUN RunIMUService
+#define SERV_3_RUN RunKeyboardService
 // How big should this services Queue be?
 #define SERV_3_QUEUE_SIZE 3
 #endif
@@ -322,8 +322,8 @@ typedef enum
 #define TIMER0_RESP_FUNC PostcontrollerFSM
 #define TIMER1_RESP_FUNC PostcontrollerFSM
 #define TIMER2_RESP_FUNC PostcontrollerFSM
-#define TIMER3_RESP_FUNC PostIMUService
-#define TIMER4_RESP_FUNC PostIMUService
+#define TIMER3_RESP_FUNC TIMER_UNUSED
+#define TIMER4_RESP_FUNC TIMER_UNUSED
 #define TIMER5_RESP_FUNC TIMER_UNUSED
 #define TIMER6_RESP_FUNC TIMER_UNUSED
 #define TIMER7_RESP_FUNC TIMER_UNUSED
