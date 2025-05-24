@@ -39,7 +39,6 @@
 static void configSPI(void);
 static void LSM6DS33_Init(void);
 static uint8_t LSM6DS33_ReadReg(uint8_t reg_addr);
-static int16_t LSM6DS33_ReadZAccel(void);
 static AccelData_t LSM6DS33_ReadAccelXYZ(void);
 static GyroData_t LSM6DS33_ReadGyroXYZ(void);
 /*---------------------------- Module Variables ---------------------------*/
@@ -251,7 +250,7 @@ static void configSPI(void)
   // Step 3: Enable Enhanced Buffer
   SPI1CONbits.ENHBUF = 0;
   // Step 4: Set Baudrate
-  SPI1BRG = 49;                           // for 200kHz SPI freq we use SPI1BRG = 49
+  SPI1BRG = 399;                           // for 200kHz SPI freq we use SPI1BRG = 49
   SPI_freq = pbclk / (2 * (SPI1BRG + 1)); // SPI clock frequency
   DB_printf("SPI clock frequency: %d\r\n", SPI_freq);
   // Step 5: Clear the SPIROV Bit
@@ -299,28 +298,7 @@ uint8_t LSM6DS33_ReadReg(uint8_t reg_addr)
   return result;
 }
 
-int16_t LSM6DS33_ReadZAccel(void)
-{
-  LATAbits.LATA3 = 0;         // CS low
-  SPI1BUF = OUTZ_L_XL | 0xC0; // Read, auto-increment
-  while (!SPI1STATbits.SPIRBF)
-    ;
-  SPI1BUF; // dummy
 
-  SPI1BUF = 0x00;
-  while (!SPI1STATbits.SPIRBF)
-    ;
-  uint8_t z_l = SPI1BUF;
-
-  SPI1BUF = 0x00;
-  while (!SPI1STATbits.SPIRBF)
-    ;
-  uint8_t z_h = SPI1BUF;
-
-  LATAbits.LATA3 = 1; // CS high
-
-  return (int16_t)((z_h << 8) | z_l);
-}
 AccelData_t LSM6DS33_ReadAccelXYZ(void)
 {
       AccelData_t data;
@@ -358,56 +336,33 @@ GyroData_t LSM6DS33_ReadGyroXYZ(void)
 {
   GyroData_t data;
 
-  LATAbits.LATA3 = 0; // CS low
+    // Step 1: Wait for GDA bit to be set (bit 1)
+    while (!(LSM6DS33_ReadReg(STATUS_REG) & 0x02));
 
-  SPI1BUF = OUTX_L_G | 0xC0; // Read from 0x22 with auto-increment
-  while (!SPI1STATbits.SPIRBF)
-    ;
-  SPI1BUF; // Dummy read
+    // Step 2: Begin sequential reads from 0x22
+    LATAbits.LATA3 = 0;
+    SPI1BUF = OUTX_L_G | 0x80;  // MSB=1 for read
+    while (!SPI1STATbits.SPIRBF); SPI1BUF;
 
-  // Read X_L
-  SPI1BUF = 0x00;
-  while (!SPI1STATbits.SPIRBF)
-    ;
-  uint8_t x_l = SPI1BUF;
+    // Read X_L and X_H
+    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t x_l = SPI1BUF;
+    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t x_h = SPI1BUF;
 
-  // Read X_H
-  SPI1BUF = 0x00;
-  while (!SPI1STATbits.SPIRBF)
-    ;
-  uint8_t x_h = SPI1BUF;
+    // Read Y_L and Y_H
+    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t y_l = SPI1BUF;
+    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t y_h = SPI1BUF;
 
-  // Read Y_L
-  SPI1BUF = 0x00;
-  while (!SPI1STATbits.SPIRBF)
-    ;
-  uint8_t y_l = SPI1BUF;
+    // Read Z_L and Z_H
+    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t z_l = SPI1BUF;
+    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t z_h = SPI1BUF;
 
-  // Read Y_H
-  SPI1BUF = 0x00;
-  while (!SPI1STATbits.SPIRBF)
-    ;
-  uint8_t y_h = SPI1BUF;
+    LATAbits.LATA3 = 1;
 
-  // Read Z_L
-  SPI1BUF = 0x00;
-  while (!SPI1STATbits.SPIRBF)
-    ;
-  uint8_t z_l = SPI1BUF;
+    data.x = ((int16_t)x_h << 8) | x_l;
+    data.y = ((int16_t)y_h << 8) | y_l;
+    data.z = ((int16_t)z_h << 8) | z_l;
 
-  // Read Z_H
-  SPI1BUF = 0x00;
-  while (!SPI1STATbits.SPIRBF)
-    ;
-  uint8_t z_h = SPI1BUF;
-
-  LATAbits.LATA3 = 1; // CS high
-
-  data.x = ((int16_t)x_h << 8) | x_l;
-  data.y = ((int16_t)y_h << 8) | y_l;
-  data.z = ((int16_t)z_h << 8) | z_l;
-
-  return data;
+    return data;
 }
 
 /*------------------------------- Footnotes -------------------------------*/
