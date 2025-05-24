@@ -29,6 +29,7 @@
 #include <xc.h>
 #include "ControllerComm.h"
 #include "controllerFSM.h"
+#include "controllerFSM.h"
 /*----------------------------- Module Defines ----------------------------*/
 
 /*---------------------------- Module Functions ---------------------------*/
@@ -156,7 +157,7 @@ ES_Event_t RunIMUService(ES_Event_t ThisEvent)
     // DB_printf("IMU WHO_AM_I: 0x%x\r\n", id);
     // Read the accelerations
     AccelData_t accel = LSM6DS33_ReadAccelXYZ();
-    DB_printf("Accel X: %d, Y: %d, Z: %d\r\n", accel.x, accel.y, accel.z);
+    //DB_printf("Accel X: %d, Y: %d, Z: %d\r\n", accel.x, accel.y, accel.z);
 
     static bool is_right_side_up = true; // assume it is right side up initially
     if (accel.y > acc_gravity_threshold)
@@ -165,7 +166,10 @@ ES_Event_t RunIMUService(ES_Event_t ThisEvent)
       DB_printf("IMU is upside down\r\n");
       ES_Event_t Event2Post;
       Event2Post.EventType = ES_IMU_UP_SIDE_DOWN;
-      PostControllerComm(Event2Post);
+      PostcontrollerFSM(Event2Post);
+      ES_Event_t Event2Post2;
+      Event2Post2.EventType = ES_IMU_IS_CHARGING;
+      PostcontrollerFSM(Event2Post2);
     }
     else if (accel.y < -acc_gravity_threshold)
     {
@@ -173,7 +177,7 @@ ES_Event_t RunIMUService(ES_Event_t ThisEvent)
       DB_printf("IMU is right side up\r\n");
       ES_Event_t Event2Post;
       Event2Post.EventType = ES_IMU_RIGHT_SIDE_UP;
-      PostControllerComm(Event2Post);
+      PostcontrollerFSM(Event2Post);
     }
     static bool is_spinning = false; // assume it is not spinning initially
     // check the gyro only if it is upside down
@@ -190,7 +194,7 @@ ES_Event_t RunIMUService(ES_Event_t ThisEvent)
         DB_printf("IMU is spinning\r\n");
         ES_Event_t Event2Post;
         Event2Post.EventType = ES_IMU_IS_CHARGING;
-        PostControllerComm(Event2Post);
+        PostcontrollerFSM(Event2Post);
       }
       else if (gyro.y < gyro_spinning_threshold && gyro.y > -gyro_spinning_threshold && is_spinning)
       {
@@ -199,7 +203,7 @@ ES_Event_t RunIMUService(ES_Event_t ThisEvent)
         DB_printf("IMU is not spinning\r\n");
         ES_Event_t Event2Post;
         Event2Post.EventType = ES_IMU_IS_NOT_CHARGING;
-        PostControllerComm(Event2Post);
+        PostcontrollerFSM(Event2Post);
       }
     }
   
