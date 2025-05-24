@@ -35,8 +35,9 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent);
 
 // Private Function Prototypes
 void SetupUART();
-//void SendFrame(const uint8_t *frame, uint8_t len);
 void ProcessUARTByte(uint8_t byte);
 void ParseAPIFrame();
+void updateTxFrame();
+void SendFrame();
 #endif /* ServTemplate_H */
 

@@ -39,12 +39,12 @@
 /*----------------------------- Module Defines ----------------------------*/
 #define ONE_SEC 1000
 #define HALF_SEC ONE_SEC/2
-#define FOUR_SEC ONE_SEC*4
+#define FIFTH_SEC ONE_SEC/5
 
-#define DECHARGE_PERIOD ONE_SEC
-#define RECHARGE_PERIOD ONE_SEC
-#define IDLE_TIME FOUR_SEC
-#define FULL_POWER 30
+#define DECHARGE_PERIOD FIFTH_SEC
+#define RECHARGE_PERIOD FIFTH_SEC
+#define IDLE_TIME (ONE_SEC*4)
+#define FULL_POWER 150
 #define NO_POWER 0
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this machine.They should be functions
@@ -60,7 +60,7 @@ static BarnacleState_t CurrentState = Idle;
 static uint8_t MyPriority;
 
 // module variable 
-static uint8_t Power = NO_POWER;
+uint8_t Power = NO_POWER;
 
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
@@ -161,18 +161,61 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
       if (ThisEvent.EventType == ES_PAIRED)    
       {
         Power = FULL_POWER;
-        CurrentState = Power_On;
+        CurrentState = Idle;
       }
     }
     break;
 
     case Idle:
     {
-      if (ThisEvent.EventType == ES_COMMAND)
+      switch (ThisEvent.EventType)
       {
-        ES_Timer_InitTimer(POWER_TIMER, DECHARGE_PERIOD);
-        ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
-        CurrentState =  Power_On;
+        case ES_COMMAND:  
+        {  
+          ES_Timer_InitTimer(POWER_TIMER, DECHARGE_PERIOD);
+          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
+          CurrentState =  Power_On;
+        }
+        break;
+
+        case ES_DUMP:  
+        {  
+          ES_Timer_InitTimer(POWER_TIMER, DECHARGE_PERIOD);
+          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
+          CurrentState =  Power_On;
+        }
+        break;
+
+        case ES_IDLE:  
+        {  
+          // Do nothing
+          CurrentState = Idle;
+        }
+        break;
+
+        case ES_CHARGE:
+        {
+          Power += 6;
+          Power = (Power<FULL_POWER)?Power:FULL_POWER; // Limit power to FULL_POWER
+          CurrentState = Recharging;
+        }
+
+        // POWER_TIMER start in Power up state, but ES_TIMEOUT at idle state
+        case ES_TIMEOUT:  
+        {  
+          if (ThisEvent.EventParam == POWER_TIMER)
+          {
+            Power -= 1;
+            if (Power == 0)
+            {
+              ES_Event_t noPowerEvent;
+              noPowerEvent.EventType = ES_NOPWR; 
+              PostDrivetrainService(noPowerEvent);
+              CurrentState = No_Power;
+            }
+          }
+        }
+        break;
       }
     }
     break;
@@ -181,9 +224,11 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
     {
       switch (ThisEvent.EventType)
       {
-        case ES_CHARGING_START:  
+        case ES_CHARGE:  
         {  
-          ES_Timer_InitTimer(POWER_TIMER, RECHARGE_PERIOD);
+          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
+          Power += 6;
+          Power = (Power<FULL_POWER)?Power:FULL_POWER; // Limit power to FULL_POWER
           CurrentState = Recharging;
         }
         break;
@@ -196,21 +241,37 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
             Power -= 1;
             if (Power == 0)
             {
+              ES_Event_t noPowerEvent;
+              noPowerEvent.EventType = ES_NOPWR; 
+              PostDrivetrainService(noPowerEvent);
               CurrentState = No_Power;
             }
           }
+          /*
           if (ThisEvent.EventParam == IDLE_TIMER)
           {
             CurrentState = Idle;
           }
+          */
         }
         break;
 
         case ES_COMMAND:
         {
-          ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
+          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
         }
         break;
+
+        case ES_DUMP:
+        {
+          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
+        }
+        break;
+
+        case ES_IDLE:
+        {
+          CurrentState = Idle;
+        }
 
         default:
           break;
@@ -222,32 +283,34 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
     {
       switch (ThisEvent.EventType)
       {
-        case ES_CHARGING_END:  
+        case ES_CHARGE:  
         {  
-          CurrentState = Idle;
-        }
-        break;
-
-        case ES_TIMEOUT:  
-        {  
-          if (ThisEvent.EventParam == POWER_TIMER)
-          {
-            ES_Timer_InitTimer(POWER_TIMER, RECHARGE_PERIOD);
-            Power += 1;
-            Power = (Power<FULL_POWER)?Power:FULL_POWER;
-          }
-          if (ThisEvent.EventParam == IDLE_TIMER)
-          {
-            CurrentState = Idle;
-          }
+          Power += 6;
+          Power = (Power<FULL_POWER)?Power:FULL_POWER; // Limit power to FULL_POWER
+          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
         }
         break;
 
         case ES_COMMAND:
         {
-          ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
+          ES_Timer_InitTimer(POWER_TIMER, DECHARGE_PERIOD);
+          CurrentState = Power_On;
+          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
         }
         break;
+
+        case ES_DUMP:
+        {
+          ES_Timer_InitTimer(POWER_TIMER, DECHARGE_PERIOD);
+          CurrentState = Power_On;
+          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
+        }
+        break;
+
+        case ES_IDLE:
+        {
+          CurrentState = Idle;
+        }
 
         default:
           break;
@@ -255,7 +318,19 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
     }
     break;
 
-    
+    case No_Power:       
+    {
+      if (ThisEvent.EventType == ES_CHARGE) {
+        Power += 6;
+        Power = (Power<FULL_POWER)?Power:FULL_POWER; // Limit power to FULL_POWER
+        CurrentState = Recharging;
+      }
+      else {
+        DB_printf("NO CHARGE!!! CHARGE IMMEDIATELY\r\n");
+      }
+    }
+    break;
+
     default:
       break;
   }                                   
@@ -266,4 +341,3 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
 /***************************************************************************
  private functions
  ***************************************************************************/
-

@@ -12,10 +12,11 @@
 #include "ES_Configure.h" /* gets us event definitions */
 #include "ES_Types.h"     /* gets bool type for returns */
 // communication defines
+#define boat_addresses_MSB 0x20
 #define pairing_status_msg 0x02
 #define driving_status_msg 0x00
 #define charging_status_msg 0x01
-#define joy_stick_neutral_msg 0x00
+#define joy_stick_neutral_msg 127
 
 enum{
 delimiter_byte, length_msb_byte, length_lsb_byte,

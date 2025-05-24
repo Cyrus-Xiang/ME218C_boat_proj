@@ -262,14 +262,15 @@ typedef enum
   ES_NEW_KEY,               /* signals a new key received from terminal */
   ES_LOCK,
   ES_UNLOCK,
-   //Events to communication service
+  //Events to communication service
+  ES_PACKET_IN,
+
   //Events to controllerFSM
   ES_CHOOSE_BOAT_BUTTON_PRESSED,
   ES_PAIR_BUTTON_RELEASED,
   ES_PAIR_BUTTON_PRESSED,
   ES_DROP_COAL_BUTTON_PRESSED,
   ES_DROP_ANCHOR_BUTTON_PRESSED,
-  ES_IMU_ORIENTATION_SWITCH,
   ES_IMU_RIGHT_SIDE_UP,
   ES_IMU_UP_SIDE_DOWN,
   ES_IMU_IS_CHARGING,
@@ -320,7 +321,7 @@ typedef enum
 #define TIMER_UNUSED ((pPostFunc)0)
 #define TIMER0_RESP_FUNC PostcontrollerFSM
 #define TIMER1_RESP_FUNC PostcontrollerFSM
-#define TIMER2_RESP_FUNC TIMER_UNUSED
+#define TIMER2_RESP_FUNC PostcontrollerFSM
 #define TIMER3_RESP_FUNC PostIMUService
 #define TIMER4_RESP_FUNC PostIMUService
 #define TIMER5_RESP_FUNC TIMER_UNUSED
@@ -346,6 +347,7 @@ typedef enum
 #define CTRLCOMM_TIMER 14
 #define JoystickScan_TIMER 0
 #define ServoUpdate_TIMER 1
+#define sevenSeg_flash_TIMER 2
 #define IMUUpdate_TIMER 3
 #define IMUSetup_Delay_TIMER 4
 #endif /* ES_CONFIGURE_H */
