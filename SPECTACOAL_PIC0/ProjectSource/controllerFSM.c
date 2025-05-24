@@ -96,6 +96,8 @@ const uint8_t seg_table[11] = {
     0b00000000, // 10 means no display
 };
 
+
+
 // variables for battery(charge) level indication (servo)
 #define charge_byte_full 150
 #define charge_update_interval 300 // 300ms
@@ -113,8 +115,8 @@ extern uint8_t powerByte; // set in comm service
 //variables for LED status indicator
 #define charge_indicator_LED LATBbits.LATB2
 #define drive_indicator_LED LATBbits.LATB3
-
-
+// because we are running out of pins, we use the last output of shift reg to turn on the third LED
+static bool paired_LED_is_on = false;
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -302,6 +304,8 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
     if (ThisEvent.EventType == ES_BOAT_PAIRED)
     {
       CurrentState = DriveMode_s;
+      paired_LED_is_on = true; // turn on the paired LED
+      adjust_7seg(boat_selected); // update the shift register to toggle on the paired or not indicator LED
       enterDriveMode_s();
       DB_printf("Pairing successful, entering Drive Mode\n");
     }
@@ -435,7 +439,14 @@ static void config_buttons(void)
 static void adjust_7seg(uint8_t digit_input)
 {
   // convert the digit to the corresponding 7-segment pattern
-  uint8_t data = seg_table[digit_input];
+    uint8_t data;
+  if (!paired_LED_is_on)
+  {
+     data = seg_table[digit_input];
+  }else {
+     data = seg_table[digit_input] | 0b10000000; 
+  }
+  
   RCLK_port = 0; // Disable latch during shifting
   for (int i = 7; i >= 0; i--)
   {
