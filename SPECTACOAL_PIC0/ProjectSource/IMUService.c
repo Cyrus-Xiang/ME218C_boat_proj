@@ -156,10 +156,10 @@ ES_Event_t RunIMUService(ES_Event_t ThisEvent)
     // DB_printf("IMU WHO_AM_I: 0x%x\r\n", id);
     // Read the accelerations
     AccelData_t accel = LSM6DS33_ReadAccelXYZ();
-    // DB_printf("Accel X: %d, Y: %d, Z: %d\r\n", accel.x, accel.y, accel.z);
+    DB_printf("Accel X: %d, Y: %d, Z: %d\r\n", accel.x, accel.y, accel.z);
 
     static bool is_right_side_up = true; // assume it is right side up initially
-    if (accel.y > acc_gravity_threshold && is_right_side_up)
+    if (accel.y > acc_gravity_threshold)
     {
       is_right_side_up = false; // IMU is upside down
       DB_printf("IMU is upside down\r\n");
@@ -167,7 +167,7 @@ ES_Event_t RunIMUService(ES_Event_t ThisEvent)
       Event2Post.EventType = ES_IMU_UP_SIDE_DOWN;
       PostControllerComm(Event2Post);
     }
-    else if (accel.y < -acc_gravity_threshold && !is_right_side_up)
+    else if (accel.y < -acc_gravity_threshold)
     {
       is_right_side_up = true; // IMU is right side up
       DB_printf("IMU is right side up\r\n");
