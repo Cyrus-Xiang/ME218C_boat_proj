@@ -62,6 +62,7 @@ bool InitI2CService(uint8_t Priority)
   /********************************************
    in here you write your initialization code
    *******************************************/
+
   // post the initial transition event
   ThisEvent.EventType = ES_INIT;
   if (ES_PostToService(MyPriority, ThisEvent) == true)

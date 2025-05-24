@@ -107,11 +107,13 @@ const uint8_t seg_table[11] = {
 #define ticks_per_us 2.5
 static uint16_t PW_range_us;
 static uint16_t PulseWidth_servo_us;
+
 extern uint8_t powerByte; // set in comm service
 
 //variables for LED status indicator
 #define charge_indicator_LED LATBbits.LATB2
 #define drive_indicator_LED LATBbits.LATB3
+
 
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
@@ -217,6 +219,7 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
       // read the joystick values
       ADC_MultiRead(Curr_AD_Val);
       // update the joystick values in the txFrame
+
       //txFrame[joy_x_byte] = (uint8_t)(Curr_AD_Val[0] >> 2); // right shift to get 8 bits (divide by 4)
       //txFrame[joy_y_byte] = (uint8_t)(Curr_AD_Val[1] >> 2); // right shift to get 8 bits (divide by 4)
 
@@ -224,6 +227,7 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
       txFrame[joy_x_byte] = 200;
       txFrame[joy_y_byte] = 200;
       // DB_printf("joystick X: %d Y: %d\n", txFrame[joy_x_byte], txFrame[joy_y_byte]);
+
       ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval);
     }
     if (ThisEvent.EventParam == ServoUpdate_TIMER)
