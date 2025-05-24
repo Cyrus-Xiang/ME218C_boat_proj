@@ -58,7 +58,7 @@ static controllerState_t CurrentState;
 static uint8_t MyPriority;
 static uint32_t Curr_AD_Val[2];
 // variables for the wireless communication
-static uint8_t boat_selected = 5; // default to boat 6
+static uint8_t boat_selected = 6; // default to boat 6
 static uint8_t max_boat_number = 6;
 const static uint8_t boat_addresses_LSB[6] = {0x81, 0x82, 0x83, 0x84, 0x85, 0x86}; 
 
@@ -79,7 +79,7 @@ uint8_t txFrame[] = {
 #define SRCLK_port LATAbits.LATA0 // clock pin for SN74HC595 shift register
 #define RCLK_port LATAbits.LATA1  // latch pin for SN74HC595 shift register
 #define SER_port LATAbits.LATA2   // data pin for SN74HC595 shift register
-#define SHORT_DELAY() asm volatile("nop; nop; nop; nop")
+#define SHORT_DELAY() asm volatile("nop; nop; nop; nop; nop; nop; nop; nop; nop; nop")
 // 7-segment patterns (common cathode)
 // a–g, dp: MSB = a, LSB = dp
 const uint8_t seg_table[11] = {
@@ -95,7 +95,19 @@ const uint8_t seg_table[11] = {
     0b01101111, // 9
     0b00000000, // 10 means no display
 };
-
+// const uint8_t seg_table[11] = {
+//     0b00000001, //test segment a
+//     0b00000010, //test segment b
+//     0b00000100, //test segment c
+//     0b00001000, //test segment d
+//     0b00010000, //test segment e
+//     0b00100000, //test segment f
+//     0b01000000, //test segment g
+//     0b10000000, //test segment dp
+//     0b10000000, //test segment dp
+//     0b10000000, //test segment dp
+//     0b00000000, // 10 means no display
+// };
 
 
 // variables for battery(charge) level indication (servo)
@@ -156,7 +168,7 @@ bool InitcontrollerFSM(uint8_t Priority)
   config_shift_reg();
   config_charge_indicator();
   adjust_7seg(0);                                                     // display 0 on the 7-segment display to indicate no boat selected
-  ES_Timer_InitTimer(sevenSeg_flash_TIMER, seven_seg_flash_duration); // set the timer for 100ms
+  //ES_Timer_InitTimer(sevenSeg_flash_TIMER, seven_seg_flash_duration); // set the timer for 100ms
   DB_printf("controllerFSM successfully initialized\n");
   // post the initial transition event
   ThisEvent.EventType = ES_INIT;
@@ -222,13 +234,13 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
       ADC_MultiRead(Curr_AD_Val);
       // update the joystick values in the txFrame
 
-      //txFrame[joy_x_byte] = (uint8_t)(Curr_AD_Val[0] >> 2); // right shift to get 8 bits (divide by 4)
-      //txFrame[joy_y_byte] = (uint8_t)(Curr_AD_Val[1] >> 2); // right shift to get 8 bits (divide by 4)
+      txFrame[joy_x_byte] = (uint8_t)(Curr_AD_Val[1] >> 2); // right shift to get 8 bits (divide by 4)
+      txFrame[joy_y_byte] = (uint8_t)(Curr_AD_Val[0] >> 2); // right shift to get 8 bits (divide by 4)
 
       //TODO: Debugging
-      txFrame[joy_x_byte] = 200;
-      txFrame[joy_y_byte] = 200;
-      // DB_printf("joystick X: %d Y: %d\n", txFrame[joy_x_byte], txFrame[joy_y_byte]);
+      //txFrame[joy_x_byte] = 200;
+      //txFrame[joy_y_byte] = 200;
+      DB_printf("joystick X: %d Y: %d\n", txFrame[joy_x_byte], txFrame[joy_y_byte]);
 
       ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval);
     }
@@ -266,6 +278,7 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
       // update the boat number in the txFrame
       txFrame[dst_addr_msb_byte] = boat_addresses_MSB;
       txFrame[dst_addr_lsb_byte] = boat_addresses_LSB[boat_selected - 1];
+      adjust_7seg(boat_selected);
       DB_printf("boat address is locked to %d selected, which is boat %d\n", txFrame[dst_addr_lsb_byte], boat_selected);
     }
     else if (ThisEvent.EventType == ES_PAIR_BUTTON_PRESSED)
@@ -446,13 +459,15 @@ static void adjust_7seg(uint8_t digit_input)
   }else {
      data = seg_table[digit_input] | 0b10000000; 
   }
-  
+  //DB_printf("adjusting 7-segment display to %d \n", data );
   RCLK_port = 0; // Disable latch during shifting
   for (int i = 7; i >= 0; i--)
   {
     SRCLK_port = 0;
     SHORT_DELAY(); // Ensure clock low period
-    SER_port = (data >> i) & 0x01;
+    bool bit_to_shift = (data >> i) & 0x01; // Get the bit to shift in
+    SER_port = bit_to_shift;
+    DB_printf("shifting in bit %d at position %d\n", bit_to_shift, i);
     SHORT_DELAY();
     SRCLK_port = 1; // Rising edge shifts in bit
     SHORT_DELAY();
