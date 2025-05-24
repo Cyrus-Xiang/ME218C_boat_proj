@@ -57,9 +57,10 @@ static uint8_t MyPriority;
 #define WHO_AM_I 0x0F
 #define OUTX_L_G 0x22 // Starting address for gyro output registers
 #define STATUS_REG 0x1E
-#define OUTX_L_XL  0x28
+#define OUTX_L_XL 0x28
 static uint32_t SPI_freq;
-
+#define gyro_spinning_threshold 20000 // threshold for detecting that it is spinning
+#define acc_gravity_threshold 13000   // threshold for detecting if its upside down
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -155,73 +156,117 @@ ES_Event_t RunIMUService(ES_Event_t ThisEvent)
     // DB_printf("IMU WHO_AM_I: 0x%x\r\n", id);
     // Read the accelerations
     AccelData_t accel = LSM6DS33_ReadAccelXYZ();
-    DB_printf("Accel X: %d, Y: %d, Z: %d\r\n", accel.x, accel.y, accel.z);
-    // read the gyroscope
-    GyroData_t gyro = LSM6DS33_ReadGyroXYZ();
-    DB_printf("Gyro X: %d, Y: %d, Z: %d\r\n", gyro.x, gyro.y, gyro.z);
-    // check the status of accelerometer
-    uint8_t status = LSM6DS33_ReadReg(0x1E);
-    DB_printf("STATUS_REG = 0x%x\r\n", status);
-    uint8_t ctrl1_val = LSM6DS33_ReadReg(0x10);
-    DB_printf("CTRL1_XL = 0x%x\r\n", ctrl1_val);
-  }
-  else if (ThisEvent.EventType == ES_TIMEOUT && ThisEvent.EventParam == IMUSetup_Delay_TIMER)
-  {
-    DB_printf("accelerometer is enabled\r\n");
-    ES_Timer_InitTimer(IMUUpdate_TIMER, IMU_read_interval);
-    // === Enable Accel XYZ axes ===
-    LATAbits.LATA3 = 0;
-    SPI1BUF = 0x18 & 0x7F; // CTRL9_XL
-    while (!SPI1STATbits.SPIRBF)
-      ;
-    SPI1BUF;
-    SPI1BUF = 0x38; // Enable X, Y, Z axes
-    while (!SPI1STATbits.SPIRBF)
-      ;
-    SPI1BUF;
-    LATAbits.LATA3 = 1;
+    // DB_printf("Accel X: %d, Y: %d, Z: %d\r\n", accel.x, accel.y, accel.z);
 
-    // === Configure Accelerometer ===
-    LATAbits.LATA3 = 0;
-    SPI1BUF = 0x10 & 0x7F; // CTRL1_XL
-    while (!SPI1STATbits.SPIRBF)
-      ;
-    SPI1BUF;
-    SPI1BUF = 0x60; // 416 Hz, ±2g
-    while (!SPI1STATbits.SPIRBF)
-      ;
-    SPI1BUF;
-    LATAbits.LATA3 = 1;
+    static bool is_right_side_up = true; // assume it is right side up initially
+    if (accel.y > acc_gravity_threshold && is_right_side_up)
+    {
+      is_right_side_up = false; // IMU is upside down
+      DB_printf("IMU is upside down\r\n");
+      ES_Event_t Event2Post;
+      Event2Post.EventType = ES_IMU_UP_SIDE_DOWN;
+      PostControllerComm(Event2Post);
+    }
+    else if (accel.y < -acc_gravity_threshold && !is_right_side_up)
+    {
+      is_right_side_up = true; // IMU is right side up
+      DB_printf("IMU is right side up\r\n");
+      ES_Event_t Event2Post;
+      Event2Post.EventType = ES_IMU_RIGHT_SIDE_UP;
+      PostControllerComm(Event2Post);
+    }
+    static bool is_spinning = false; // assume it is not spinning initially
+    // check the gyro only if it is upside down
+    if (!is_right_side_up)
+    {
+      // read the gyroscope
+      GyroData_t gyro = LSM6DS33_ReadGyroXYZ();
+      // DB_printf("Gyro X: %d, Y: %d, Z: %d\r\n", gyro.x, gyro.y, gyro.z);stControllerComm(Event2Post);
+      //check if the absolute value of the y-axis gyro reading exceeds the threshold
+      if(gyro.y > gyro_spinning_threshold || gyro.y < -gyro_spinning_threshold && !is_spinning)
+      {
+        // IMU is spinning
+        is_spinning = true; // update the spinning state
+        DB_printf("IMU is spinning\r\n");
+        ES_Event_t Event2Post;
+        Event2Post.EventType = ES_IMU_IS_CHARGING;
+        PostControllerComm(Event2Post);
+      }
+      else if (gyro.y < gyro_spinning_threshold && gyro.y > -gyro_spinning_threshold && is_spinning)
+      {
+        // IMU is not spinning
+        is_spinning = false; // update the spinning state
+        DB_printf("IMU is not spinning\r\n");
+        ES_Event_t Event2Post;
+        Event2Post.EventType = ES_IMU_IS_NOT_CHARGING;
+        PostControllerComm(Event2Post);
+      }
+    }
+  
+  /*************check the status for debugging
+   * ********************************/
+  // uint8_t status = LSM6DS33_ReadReg(0x1E);
+  // DB_printf("STATUS_REG = 0x%x\r\n", status);
+  // uint8_t ctrl1_val = LSM6DS33_ReadReg(0x10);
+  // DB_printf("CTRL1_XL = 0x%x\r\n", ctrl1_val);
+}
+else if (ThisEvent.EventType == ES_TIMEOUT && ThisEvent.EventParam == IMUSetup_Delay_TIMER)
+{
+  DB_printf("accelerometer is enabled\r\n");
+  ES_Timer_InitTimer(IMUUpdate_TIMER, IMU_read_interval);
+  // === Enable Accel XYZ axes ===
+  LATAbits.LATA3 = 0;
+  SPI1BUF = 0x18 & 0x7F; // CTRL9_XL
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  SPI1BUF;
+  SPI1BUF = 0x38; // Enable X, Y, Z axes
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  SPI1BUF;
+  LATAbits.LATA3 = 1;
 
-    // === Enable Gyro XYZ axes ===
-    LATAbits.LATA3 = 0;
-    SPI1BUF = 0x19 & 0x7F; // CTRL10_C
-    while (!SPI1STATbits.SPIRBF)
-      ;
-    SPI1BUF;
-    SPI1BUF = 0x38; // Enable X, Y, Z axes
-    while (!SPI1STATbits.SPIRBF)
-      ;
-    SPI1BUF;
-    LATAbits.LATA3 = 1;
+  // === Configure Accelerometer ===
+  LATAbits.LATA3 = 0;
+  SPI1BUF = 0x10 & 0x7F; // CTRL1_XL
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  SPI1BUF;
+  SPI1BUF = 0x60; // 416 Hz, ±2g
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  SPI1BUF;
+  LATAbits.LATA3 = 1;
 
-    // === Configure Gyroscope ===
-    LATAbits.LATA3 = 0;
-    SPI1BUF = 0x11 & 0x7F; // CTRL2_G
-    while (!SPI1STATbits.SPIRBF)
-      ;
-    SPI1BUF;
-    SPI1BUF = 0x60; // 416 Hz, ±250 dps
-    while (!SPI1STATbits.SPIRBF)
-      ;
-    SPI1BUF;
-    LATAbits.LATA3 = 1;
-  }
-  else
-  {
-    // Handle other events if necessary
-  }
-  return ReturnEvent;
+  // === Enable Gyro XYZ axes ===
+  LATAbits.LATA3 = 0;
+  SPI1BUF = 0x19 & 0x7F; // CTRL10_C
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  SPI1BUF;
+  SPI1BUF = 0x38; // Enable X, Y, Z axes
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  SPI1BUF;
+  LATAbits.LATA3 = 1;
+
+  // === Configure Gyroscope ===
+  LATAbits.LATA3 = 0;
+  SPI1BUF = 0x11 & 0x7F; // CTRL2_G
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  SPI1BUF;
+  SPI1BUF = 0x60; // 416 Hz, ±250 dps
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  SPI1BUF;
+  LATAbits.LATA3 = 1;
+}
+else
+{
+  // Handle other events if necessary
+}
+return ReturnEvent;
 }
 
 /***************************************************************************
@@ -250,7 +295,7 @@ static void configSPI(void)
   // Step 3: Enable Enhanced Buffer
   SPI1CONbits.ENHBUF = 0;
   // Step 4: Set Baudrate
-  SPI1BRG = 399;                           // for 200kHz SPI freq we use SPI1BRG = 49
+  SPI1BRG = 399;                          // for 200kHz SPI freq we use SPI1BRG = 49
   SPI_freq = pbclk / (2 * (SPI1BRG + 1)); // SPI clock frequency
   DB_printf("SPI clock frequency: %d\r\n", SPI_freq);
   // Step 5: Clear the SPIROV Bit
@@ -298,71 +343,112 @@ uint8_t LSM6DS33_ReadReg(uint8_t reg_addr)
   return result;
 }
 
-
 AccelData_t LSM6DS33_ReadAccelXYZ(void)
 {
-      AccelData_t data;
+  AccelData_t data;
 
-    // Step 1: Wait for XLDA bit to be set
-    while (!(LSM6DS33_ReadReg(STATUS_REG) & 0x01));
+  // Step 1: Wait for XLDA bit to be set
+  while (!(LSM6DS33_ReadReg(STATUS_REG) & 0x01))
+    ;
 
-    // Step 2: Begin sequential reads
-    LATAbits.LATA3 = 0;
-    SPI1BUF = OUTX_L_XL | 0x80; // Start from 0x28, MSB=1 for read
-    while (!SPI1STATbits.SPIRBF); SPI1BUF;
+  // Step 2: Begin sequential reads
+  LATAbits.LATA3 = 0;
+  SPI1BUF = OUTX_L_XL | 0x80; // Start from 0x28, MSB=1 for read
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  SPI1BUF;
 
-    // Read X_L and X_H
-    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t x_l = SPI1BUF;
-    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t x_h = SPI1BUF;
+  // Read X_L and X_H
+  SPI1BUF = 0x00;
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  uint8_t x_l = SPI1BUF;
+  SPI1BUF = 0x00;
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  uint8_t x_h = SPI1BUF;
 
-    // Read Y_L and Y_H
-    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t y_l = SPI1BUF;
-    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t y_h = SPI1BUF;
+  // Read Y_L and Y_H
+  SPI1BUF = 0x00;
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  uint8_t y_l = SPI1BUF;
+  SPI1BUF = 0x00;
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  uint8_t y_h = SPI1BUF;
 
-    // Read Z_L and Z_H
-    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t z_l = SPI1BUF;
-    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t z_h = SPI1BUF;
+  // Read Z_L and Z_H
+  SPI1BUF = 0x00;
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  uint8_t z_l = SPI1BUF;
+  SPI1BUF = 0x00;
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  uint8_t z_h = SPI1BUF;
 
-    LATAbits.LATA3 = 1;
+  LATAbits.LATA3 = 1;
 
-    data.x = ((int16_t)x_h << 8) | x_l;
-    data.y = ((int16_t)y_h << 8) | y_l;
-    data.z = ((int16_t)z_h << 8) | z_l;
+  data.x = ((int16_t)x_h << 8) | x_l;
+  data.y = ((int16_t)y_h << 8) | y_l;
+  data.z = ((int16_t)z_h << 8) | z_l;
 
-    return data;
+  return data;
 }
 
 GyroData_t LSM6DS33_ReadGyroXYZ(void)
 {
   GyroData_t data;
 
-    // Step 1: Wait for GDA bit to be set (bit 1)
-    while (!(LSM6DS33_ReadReg(STATUS_REG) & 0x02));
+  // Step 1: Wait for GDA bit to be set (bit 1)
+  while (!(LSM6DS33_ReadReg(STATUS_REG) & 0x02))
+    ;
 
-    // Step 2: Begin sequential reads from 0x22
-    LATAbits.LATA3 = 0;
-    SPI1BUF = OUTX_L_G | 0x80;  // MSB=1 for read
-    while (!SPI1STATbits.SPIRBF); SPI1BUF;
+  // Step 2: Begin sequential reads from 0x22
+  LATAbits.LATA3 = 0;
+  SPI1BUF = OUTX_L_G | 0x80; // MSB=1 for read
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  SPI1BUF;
 
-    // Read X_L and X_H
-    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t x_l = SPI1BUF;
-    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t x_h = SPI1BUF;
+  // Read X_L and X_H
+  SPI1BUF = 0x00;
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  uint8_t x_l = SPI1BUF;
+  SPI1BUF = 0x00;
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  uint8_t x_h = SPI1BUF;
 
-    // Read Y_L and Y_H
-    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t y_l = SPI1BUF;
-    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t y_h = SPI1BUF;
+  // Read Y_L and Y_H
+  SPI1BUF = 0x00;
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  uint8_t y_l = SPI1BUF;
+  SPI1BUF = 0x00;
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  uint8_t y_h = SPI1BUF;
 
-    // Read Z_L and Z_H
-    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t z_l = SPI1BUF;
-    SPI1BUF = 0x00; while (!SPI1STATbits.SPIRBF); uint8_t z_h = SPI1BUF;
+  // Read Z_L and Z_H
+  SPI1BUF = 0x00;
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  uint8_t z_l = SPI1BUF;
+  SPI1BUF = 0x00;
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  uint8_t z_h = SPI1BUF;
 
-    LATAbits.LATA3 = 1;
+  LATAbits.LATA3 = 1;
 
-    data.x = ((int16_t)x_h << 8) | x_l;
-    data.y = ((int16_t)y_h << 8) | y_l;
-    data.z = ((int16_t)z_h << 8) | z_l;
+  data.x = ((int16_t)x_h << 8) | x_l;
+  data.y = ((int16_t)y_h << 8) | y_l;
+  data.z = ((int16_t)z_h << 8) | z_l;
 
-    return data;
+  return data;
 }
 
 /*------------------------------- Footnotes -------------------------------*/
