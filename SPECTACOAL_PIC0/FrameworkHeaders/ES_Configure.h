@@ -324,7 +324,7 @@ typedef enum
 #define TIMER2_RESP_FUNC PostcontrollerFSM
 #define TIMER3_RESP_FUNC PostIMUService
 #define TIMER4_RESP_FUNC PostIMUService
-#define TIMER5_RESP_FUNC TIMER_UNUSED
+#define TIMER5_RESP_FUNC PostcontrollerFSM
 #define TIMER6_RESP_FUNC TIMER_UNUSED
 #define TIMER7_RESP_FUNC TIMER_UNUSED
 #define TIMER8_RESP_FUNC TIMER_UNUSED
@@ -350,4 +350,5 @@ typedef enum
 #define sevenSeg_flash_TIMER 2
 #define IMUUpdate_TIMER 3
 #define IMUSetup_Delay_TIMER 4
+#define seven_seg_update_TIMER 5
 #endif /* ES_CONFIGURE_H */

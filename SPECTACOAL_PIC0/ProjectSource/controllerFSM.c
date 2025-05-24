@@ -31,6 +31,7 @@
 #include "PWM_PIC32.h"
 #include "dbprintf.h"
 #include <xc.h>
+#include <libpic30.h>  // for __delay_ms()
 /*----------------------------- Module Defines ----------------------------*/
 
 /*---------------------------- Module Functions ---------------------------*/
@@ -38,6 +39,7 @@
    relevant to the behavior of this state machine
 */
 static void adjust_7seg(uint8_t digit_input);
+static void shift_reg_send_bits(uint8_t byteToShift);
 // functions related to configuration
 static void config_joystick_ADC(void);
 static void config_buttons(void);
@@ -129,6 +131,9 @@ extern uint8_t powerByte; // set in comm service
 #define drive_indicator_LED LATBbits.LATB3
 // because we are running out of pins, we use the last output of shift reg to turn on the third LED
 static bool paired_LED_is_on = false;
+
+//seven seg display related variables
+static uint8_t bits_left_to_shift = 0; // how many bits left to shift in
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -400,6 +405,38 @@ controllerState_t QuerycontrollerFSM(void)
 /***************************************************************************
  private functions
  ***************************************************************************/
+static void shift_reg_send_bits(uint8_t byteToShift)
+{
+
+}
+static void adjust_7seg(uint8_t digit_input)
+{
+  // convert the digit to the corresponding 7-segment pattern
+  uint8_t data;
+  if (!paired_LED_is_on)
+  {
+     data = seg_table[digit_input];
+  }else {
+     data = seg_table[digit_input] | 0b10000000; 
+  }
+  //DB_printf("adjusting 7-segment display to %d \n", data );
+  ES_Timer_InitTimer(seven_seg_update_TIMER, 5);
+  RCLK_port = 0; // Disable latch during shifting
+  for (int i = 7; i >= 0; i--)
+  {
+    SRCLK_port = 0;
+    SHORT_DELAY(); // Ensure clock low period
+    bool bit_to_shift = (data >> i) & 0x01; // Get the bit to shift in
+    SER_port = bit_to_shift;
+    DB_printf("shifting in bit %d at position %d\n", bit_to_shift, i);
+    SHORT_DELAY();
+    SRCLK_port = 1; // Rising edge shifts in bit
+    SHORT_DELAY();
+  }
+  RCLK_port = 1; // Rising edge latches all bits to output
+  // DB_printf("7seg is displaying boat number: %d\n", digit_input);
+  return;
+}
 static void config_charge_indicator(void)
 {
   TRISBbits.TRISB15 = 0; // output for OC1
@@ -427,7 +464,6 @@ static void config_shift_reg(void)
   SRCLK_port = 0;
   RCLK_port = 0;
   SER_port = 0;
-
   return;
 }
 static void config_joystick_ADC(void)
@@ -449,33 +485,6 @@ static void config_buttons(void)
   return;
 }
 
-static void adjust_7seg(uint8_t digit_input)
-{
-  // convert the digit to the corresponding 7-segment pattern
-    uint8_t data;
-  if (!paired_LED_is_on)
-  {
-     data = seg_table[digit_input];
-  }else {
-     data = seg_table[digit_input] | 0b10000000; 
-  }
-  //DB_printf("adjusting 7-segment display to %d \n", data );
-  RCLK_port = 0; // Disable latch during shifting
-  for (int i = 7; i >= 0; i--)
-  {
-    SRCLK_port = 0;
-    SHORT_DELAY(); // Ensure clock low period
-    bool bit_to_shift = (data >> i) & 0x01; // Get the bit to shift in
-    SER_port = bit_to_shift;
-    DB_printf("shifting in bit %d at position %d\n", bit_to_shift, i);
-    SHORT_DELAY();
-    SRCLK_port = 1; // Rising edge shifts in bit
-    SHORT_DELAY();
-  }
-  RCLK_port = 1; // Rising edge latches all bits to output
-  // DB_printf("7seg is displaying boat number: %d\n", digit_input);
-  return;
-}
 
 // enter and exit functions of the state machine
 static void enterDriveMode_s(void)
