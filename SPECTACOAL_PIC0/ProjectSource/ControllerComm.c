@@ -59,26 +59,9 @@ uint8_t txFrame[] = {
   0x00,          // Frame ID (0 = no ACK)
   0xFF, 0xFF,    // Destination address = 0xFFFF (uninitialized address)
   0x01,          // Options = 0x01 to disable ACK
-  0x00, 0x00, 0x00, 0x00,// TEST: Pairing: 0x02 (byte 9), 0x00 (byte 10), 0x00 (byte 11), 0x00 (byte 12)
+  0x00, 0x7F, 0x7F, 0x00,// TEST: Pairing: 0x02 (byte 9), 0x00 (byte 10), 0x00 (byte 11), 0x00 (byte 12)
   0x00           // Checksum (computed as 0xFF - sum of bytes after 0x7E)
 };
-
-/******DEBUG*******/
-/*
-126
-0
-9
-1
-0
-255 (should be 32 later)
-255 (should be 129-134)
-1
-0
-0
-0
-0
-0
-*/
 
 // Module variables
 static bool isPaired = false;
@@ -225,9 +208,13 @@ ES_Event_t RunControllerComm(ES_Event_t ThisEvent)
           }
         }
         else { // isPaired
-          SendFrame();
           if (txFrame[11] != NO_BUTTON_PRESSED) {
+            SendFrame();
+            DB_printf("Reset buttonByte\r\n");
             txFrame[11] = NO_BUTTON_PRESSED; // Reset buttonByte once sent
+          }
+          else {
+            SendFrame();
           }
           // DB_printf("Sent Frame\r\n");
         }

@@ -76,7 +76,7 @@ static volatile uint8_t rxBuffer[FRAME_LEN_RX];
 static volatile uint8_t rxIndex = 0;
 static volatile uint16_t expectedLength = 0;
 static volatile bool isReceiving = false;
-
+static volatile bool hasButtonEventProcessed = true; // Default to true
 // Variables For Transmitting
 
 // Payload variables
@@ -218,11 +218,12 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
 
         // 2. Parse the incoming API Packet, update extern byte variables
         ParseAPIFrame();
-        DB_printf("statusByte = %d\r\n", statusByte);
+        // DB_printf("statusByte = %d\r\n", statusByte);
         switch (statusByte) 
         {
           case 0x00: // Driving
           {
+            //DB_printf("buttonByte = %x\r\n", buttonByte);
             if (isPaired) {
               if (buttonByte == BUTTON_IDLE && joystickOneByte == JOYSTICK_IDLE
                   && joystickTwoByte == JOYSTICK_IDLE) {
@@ -231,6 +232,7 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
                 idleEvent.EventType = ES_IDLE;
                 PostDrivetrainService(idleEvent);
                 PostPowerService(idleEvent);
+                DB_printf("Post ES_IDLE to BoatFSMs\r\n");
               } 
               else {
                 ES_Event_t commandEvent;
@@ -238,16 +240,21 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
                 PostDrivetrainService(commandEvent);
                 PostPowerService(commandEvent);
                 DB_printf("Post ES_COMMAND to BoatFSMs\r\n");
-                DB_printf("buttonByte = %x\r\n", buttonByte);
+                //DB_printf("buttonByte = %x\r\n", buttonByte);
+                //DB_printf("joystickOneByte = %x\r\n", joystickOneByte);
+                //DB_printf("joystickTwoByte = %x\r\n", joystickTwoByte);
+                // DB_printf("buttonByte = %x\r\n", buttonByte);
                 // Handle button messages
-                if (buttonByte & (1 << 0)) { // Bit 0 is set, post ES_DUMP
+                if (buttonByte == 0x01 || buttonByte == 0x03) { // Bit 0 is set, post ES_DUMP
                   ES_Event_t dumpEvent;
                   dumpEvent.EventType = ES_DUMP;
                   PostDrivetrainService(dumpEvent);
                   PostPowerService(dumpEvent);
+                  hasButtonEventProcessed = true;
                   DB_printf("Post ES_DUMP to BoatFSMs\r\n");
+                  //DB_printf("buttonByte = %x\r\n", buttonByte);
                 }
-                if (buttonByte & (1 << 1)) { // Bit 1 is set, Do nothing
+                if (buttonByte == 0x02) { // Bit 1 is set, Do nothing
                   // Since no anchor on our boat, do nothing
                 }
               }
@@ -264,7 +271,7 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
             if (isPaired) {
               ES_Event_t chargeEvent;
               chargeEvent.EventType = ES_CHARGE; 
-              PostDrivetrainService(chargeEvent);
+              // PostDrivetrainService(chargeEvent);
               PostPowerService(chargeEvent);
             }
             else {
@@ -380,7 +387,7 @@ void SetupUART() {
 void __ISR(_UART_2_VECTOR, IPL7SOFT) U2RxISR(void)
 {
   rxByte = U2RXREG; // Read U2RX register into Message
-  // DB_printf("rxByte = %d\r\n", rxByte);
+  //DB_printf("rxByte = %d\r\n", rxByte);
   ProcessUARTByte(rxByte); // Pass byte to byte-level decoder
   IFS1CLR = _IFS1_U2RXIF_MASK; // Clear Rx interrupt flag
 }
@@ -410,6 +417,13 @@ void ProcessUARTByte(uint8_t byte) {
       uint8_t msb = rxBuffer[1];
       uint8_t lsb = rxBuffer[2];
       expectedLength = 4 + ((msb << 8) | lsb);  // Add start, length, checksum
+    }
+    
+    if (rxIndex == 12) {
+      if (byte == 0x01 || byte == 0x03) {
+        // Raise a flag to avoid button event being flushed
+        hasButtonEventProcessed = false;
+      }
     }
 
     if (expectedLength > 0 && rxIndex == expectedLength) { // complete a packet
@@ -467,6 +481,13 @@ void ParseAPIFrame() {
     joystickOneByte = rxBuffer[9];
     joystickTwoByte = rxBuffer[10];
     buttonByte = rxBuffer[11];
+    if (hasButtonEventProcessed) {
+      buttonByte = 0x00;
+    }
+    else {
+      buttonByte = 0x01;
+    }
+    DB_printf("buttonByte is = %x\r\n", buttonByte);
   }
 }
 

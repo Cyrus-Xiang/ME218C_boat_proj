@@ -60,7 +60,7 @@ static uint32_t Curr_AD_Val[2];
 // variables for the wireless communication
 static uint8_t boat_selected = 5; // default to boat 6
 static uint8_t max_boat_number = 6;
-const static uint8_t boat_addresses_LSB[6] = {0x81, 0x82, 0x83, 0x84, 0x85, 0x87}; //TODO: Might need to change back to 0x86
+const static uint8_t boat_addresses_LSB[6] = {0x81, 0x82, 0x83, 0x84, 0x85, 0x86}; 
 
 /*
 uint8_t txFrame[] = {
@@ -96,6 +96,8 @@ const uint8_t seg_table[11] = {
     0b00000000, // 10 means no display
 };
 
+
+
 // variables for battery(charge) level indication (servo)
 #define charge_byte_full 150
 #define charge_update_interval 300 // 300ms
@@ -107,11 +109,14 @@ const uint8_t seg_table[11] = {
 #define ticks_per_us 2.5
 static uint16_t PW_range_us;
 static uint16_t PulseWidth_servo_us;
+
 extern uint8_t powerByte; // set in comm service
 
 //variables for LED status indicator
 #define charge_indicator_LED LATBbits.LATB2
-#define paired_indicator_LED LATBbits.LATB3
+#define drive_indicator_LED LATBbits.LATB3
+// because we are running out of pins, we use the last output of shift reg to turn on the third LED
+static bool paired_LED_is_on = false;
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -139,12 +144,12 @@ bool InitcontrollerFSM(uint8_t Priority)
   // put us into the Initial PseudoState
   CurrentState = Idle_s;
   // configure LEDs for status display
-  TRISBbits.TRISB2 = 0; // charging state indicator LED
+  TRISBbits.TRISB2 = 0; // charging in progress indicator LED
   ANSELBbits.ANSB2 = 0; 
   charge_indicator_LED = 0; // turn off the LED
-  TRISBbits.TRISB3 = 0; // paired or not indicator LED
+  TRISBbits.TRISB3 = 0; // drive mode indicator LED
   ANSELBbits.ANSB3 = 0; // digital pin
-  paired_indicator_LED = 0; // turn off the LED
+  drive_indicator_LED = 0; // turn off the LED
   // configure pins and ADC for X Y information of joysticks
   config_joystick_ADC();
   config_buttons();
@@ -216,9 +221,15 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
       // read the joystick values
       ADC_MultiRead(Curr_AD_Val);
       // update the joystick values in the txFrame
-      txFrame[joy_x_byte] = (uint8_t)(Curr_AD_Val[0] >> 2); // right shift to get 8 bits (divide by 4)
-      txFrame[joy_y_byte] = (uint8_t)(Curr_AD_Val[1] >> 2); // right shift to get 8 bits (divide by 4)
+
+      //txFrame[joy_x_byte] = (uint8_t)(Curr_AD_Val[0] >> 2); // right shift to get 8 bits (divide by 4)
+      //txFrame[joy_y_byte] = (uint8_t)(Curr_AD_Val[1] >> 2); // right shift to get 8 bits (divide by 4)
+
+      //TODO: Debugging
+      txFrame[joy_x_byte] = 200;
+      txFrame[joy_y_byte] = 200;
       // DB_printf("joystick X: %d Y: %d\n", txFrame[joy_x_byte], txFrame[joy_y_byte]);
+
       ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval);
     }
     if (ThisEvent.EventParam == ServoUpdate_TIMER)
@@ -293,7 +304,8 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
     if (ThisEvent.EventType == ES_BOAT_PAIRED)
     {
       CurrentState = DriveMode_s;
-      paired_indicator_LED = 1; // turn on the LED
+      paired_LED_is_on = true; // turn on the paired LED
+      adjust_7seg(boat_selected); // update the shift register to toggle on the paired or not indicator LED
       enterDriveMode_s();
       DB_printf("Pairing successful, entering Drive Mode\n");
     }
@@ -304,14 +316,12 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
     if (ThisEvent.EventType == ES_DROP_COAL_BUTTON_PRESSED)
     {
       DB_printf("Drop coal event received\n");
-      // txFrame[buttons_byte] &= 0b01; // set the drop coal bit
-      txFrame[buttons_byte] |= 0b00000001;
+      txFrame[buttons_byte] |= 0b00000001;// set the drop coal bit
     }
     else if (ThisEvent.EventType == ES_DROP_ANCHOR_BUTTON_PRESSED)
     {
       DB_printf("Drop anchor event received\n");
-      // txFrame[buttons_byte] &= 0b10; // set the drop anchor bit
-      txFrame[buttons_byte] |= 0b00000010;
+      txFrame[buttons_byte] |= 0b00000010;// set the drop anchor bit
     }
     else if (ThisEvent.EventType == ES_IMU_UP_SIDE_DOWN)
     {
@@ -334,10 +344,12 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
     else if (ThisEvent.EventType == ES_IMU_IS_NOT_CHARGING)
     {
       txFrame[status_byte] = driving_status_msg; // update the pairing status byte in txFrame
+      charge_indicator_LED = 0; // turn off the LED
     }
     else if (ThisEvent.EventType == ES_IMU_IS_CHARGING)
     {
       txFrame[status_byte] = charging_status_msg; // update the pairing status byte in txFrame
+      charge_indicator_LED = 1; // turn on the LED
     }
     
   }
@@ -427,7 +439,14 @@ static void config_buttons(void)
 static void adjust_7seg(uint8_t digit_input)
 {
   // convert the digit to the corresponding 7-segment pattern
-  uint8_t data = seg_table[digit_input];
+    uint8_t data;
+  if (!paired_LED_is_on)
+  {
+     data = seg_table[digit_input];
+  }else {
+     data = seg_table[digit_input] | 0b10000000; 
+  }
+  
   RCLK_port = 0; // Disable latch during shifting
   for (int i = 7; i >= 0; i--)
   {
@@ -449,6 +468,7 @@ static void enterDriveMode_s(void)
   DB_printf("Entering Drive Mode\n");
   ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval); // joystick now is reading values regularly
   txFrame[status_byte] = driving_status_msg;                 // update the pairing status byte in txFrame
+  drive_indicator_LED = 1; // turn on the LED
   return;
 }
 
@@ -456,6 +476,7 @@ static void exitDriveMode_s(void)
 {
   DB_printf("Exiting Drive Mode\n");
   ES_Timer_StopTimer(JoystickScan_TIMER);
+  drive_indicator_LED = 0; // turn off the LED
   return;
 }
 
@@ -464,6 +485,5 @@ static void enterChargeMode_s(void)
   txFrame[joy_x_byte] = joy_stick_neutral_msg; // set joystick values to neutral
   txFrame[joy_y_byte] = joy_stick_neutral_msg; // set joystick values to neutral
   txFrame[buttons_byte] = 0b00000000;          // set all button bits to 0
-  charge_indicator_LED = 1; // turn on the LED
   return;
 }

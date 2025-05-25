@@ -145,8 +145,8 @@ bool Check4Buttons()
   // read the buttons and check ups and downs
   for (int i = 0; i < numOfButtons; i++)
   {
-    button_states_curr[i] = (*port_bit[i] & PortMasks[i]);
-    // HIGH = button down, LOW = button up
+    button_states_curr[i] = !(*port_bit[i] & PortMasks[i]); //not operator is here because it's idle high with pull up resistor
+    // HIGH = button up, LOW = button down
     // event is posted when the button is released (LOW)
     if (button_states_curr[i] && !button_states_last[i])
     {

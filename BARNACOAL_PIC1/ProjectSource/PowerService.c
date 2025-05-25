@@ -176,6 +176,14 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
         }
         break;
 
+        case ES_DUMP:  
+        {  
+          ES_Timer_InitTimer(POWER_TIMER, DECHARGE_PERIOD);
+          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
+          CurrentState =  Power_On;
+        }
+        break;
+
         case ES_IDLE:  
         {  
           // Do nothing
@@ -196,11 +204,13 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
           Power = (Power<FULL_POWER)?Power:FULL_POWER; // Limit power to FULL_POWER
           CurrentState = Recharging;
         }
+        break;
 
         case ES_NOPWR:
         {
           CurrentState = No_Power;
         }
+        break;
 
         case ES_TIMEOUT:    // POWER_TIMER start in Power_On state, but ES_TIMEOUT at idle state
         {  
@@ -209,10 +219,9 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
             Power -= 1;
             if (Power == NO_POWER)
             {
-              ES_Event_t Event2Post;
-              Event2Post.EventType = ES_NOPWR;
-              PostPowerService(Event2Post);
-              PostDrivetrainService(Event2Post);
+              ES_Event_t noPowerEvent;
+              noPowerEvent.EventType = ES_NOPWR; 
+              PostDrivetrainService(noPowerEvent);
               CurrentState = No_Power;
             }
           }
@@ -251,13 +260,24 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
             Power -= 1;
             if (Power == NO_POWER)
             {
-              ES_Event_t Event2Post;
-              Event2Post.EventType = ES_NOPWR;
-              PostPowerService(Event2Post);
-              PostDrivetrainService(Event2Post);
+              ES_Event_t noPowerEvent;
+              noPowerEvent.EventType = ES_NOPWR; 
+              PostDrivetrainService(noPowerEvent);
               CurrentState = No_Power;
             }
           }
+        }
+        break;
+
+        case ES_DUMP:
+        {
+          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
+        }
+        break;
+
+        case ES_DUMP:
+        {
+          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
         }
         break;
 
@@ -298,6 +318,22 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
         {
           ES_Timer_InitTimer(POWER_TIMER, DECHARGE_PERIOD);
           CurrentState = Power_On;
+        }
+        break;
+
+        case ES_DUMP:
+        {
+          ES_Timer_InitTimer(POWER_TIMER, DECHARGE_PERIOD);
+          CurrentState = Power_On;
+          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
+        }
+        break;
+
+        case ES_DUMP:
+        {
+          ES_Timer_InitTimer(POWER_TIMER, DECHARGE_PERIOD);
+          CurrentState = Power_On;
+          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
         }
         break;
 
