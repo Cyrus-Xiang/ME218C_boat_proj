@@ -58,7 +58,7 @@ static controllerState_t CurrentState;
 static uint8_t MyPriority;
 static uint32_t Curr_AD_Val[2];
 // variables for the wireless communication
-static uint8_t boat_selected = 0; // default to boat 6
+static uint8_t boat_selected = 6; // default to boat 6
 static uint8_t max_boat_number = 6;
 const static uint8_t boat_addresses_LSB[6] = {0x81, 0x82, 0x83, 0x84, 0x85, 0x86}; 
 
@@ -82,32 +82,32 @@ uint8_t txFrame[] = {
 #define SHORT_DELAY() asm volatile("nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop")
 // 7-segment patterns (common cathode)
 // a–g, dp: MSB = a, LSB = dp
-// const uint8_t seg_table[11] = {
-//     0b00111111, // 0
-//     0b00000110, // 1
-//     0b01011011, // 2
-//     0b01001111, // 3
-//     0b01100110, // 4
-//     0b01101101, // 5
-//     0b01111101, // 6
-//     0b00000111, // 7
-//     0b01111111, // 8
-//     0b01101111, // 9
-//     0b00000000, // 10 means no display
-// };
 const uint8_t seg_table[11] = {
-    0b00000001, //test segment a
-    0b00000010, //test segment b
-    0b00000100, //test segment c
-    0b00001000, //test segment d
-    0b00010000, //test segment e
-    0b00100000, //test segment f
-    0b01000000, //test segment g
-    0b10000000, //test segment dp
-    0b10000000, //test segment dp
-    0b10000000, //test segment dp
+    0b00111111, // 0
+    0b00000110, // 1
+    0b01011011, // 2
+    0b01001111, // 3
+    0b01100110, // 4
+    0b01101101, // 5
+    0b01111101, // 6
+    0b00000111, // 7
+    0b01111111, // 8
+    0b01101111, // 9
     0b00000000, // 10 means no display
 };
+// const uint8_t seg_table[11] = {
+//     0b00000001, //test segment a
+//     0b00000010, //test segment b
+//     0b00000100, //test segment c
+//     0b00001000, //test segment d
+//     0b00010000, //test segment e
+//     0b00100000, //test segment f
+//     0b01000000, //test segment g
+//     0b10000000, //test segment dp
+//     0b10000000, //test segment dp
+//     0b10000000, //test segment dp
+//     0b00000000, // 10 means no display
+// };
 
 
 // variables for battery(charge) level indication (servo)
@@ -168,7 +168,7 @@ bool InitcontrollerFSM(uint8_t Priority)
   config_shift_reg();
   config_charge_indicator();
   adjust_7seg(0);                                                     // display 0 on the 7-segment display to indicate no boat selected
-  //ES_Timer_InitTimer(sevenSeg_flash_TIMER, seven_seg_flash_duration); // set the timer for 100ms
+  ES_Timer_InitTimer(sevenSeg_flash_TIMER, seven_seg_flash_duration); // set the timer for 100ms
   DB_printf("controllerFSM successfully initialized\n");
   // post the initial transition event
   ThisEvent.EventType = ES_INIT;
