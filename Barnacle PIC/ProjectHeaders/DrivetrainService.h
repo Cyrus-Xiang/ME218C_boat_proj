@@ -25,7 +25,7 @@
 bool InitDrivetrainService(uint8_t Priority);
 bool PostDrivetrainService(ES_Event_t ThisEvent);
 ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent);
-void PWMUpdate(uint8_t vel, uint8_t om);
+void PWMUpdate(uint8_t velocity, uint8_t omega);
 uint8_t BoundaryCheck(uint8_t Value);
 void PairingStateIndicator(uint16_t Address);
 
