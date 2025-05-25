@@ -58,7 +58,7 @@ static controllerState_t CurrentState;
 static uint8_t MyPriority;
 static uint32_t Curr_AD_Val[2];
 // variables for the wireless communication
-static uint8_t boat_selected = 6; // default to boat 6
+static uint8_t boat_selected = 0; // default to boat 6
 static uint8_t max_boat_number = 6;
 const static uint8_t boat_addresses_LSB[6] = {0x81, 0x82, 0x83, 0x84, 0x85, 0x86}; 
 
@@ -75,39 +75,39 @@ uint8_t txFrame[] = {
 };
 */
 // variables for the 7 seg display
-#define seven_seg_flash_duration 500
+#define seven_seg_flash_duration 300
 #define SRCLK_port LATAbits.LATA0 // clock pin for SN74HC595 shift register
 #define RCLK_port LATAbits.LATA1  // latch pin for SN74HC595 shift register
 #define SER_port LATAbits.LATA2   // data pin for SN74HC595 shift register
-#define SHORT_DELAY() asm volatile("nop; nop; nop; nop; nop; nop; nop; nop; nop; nop")
+#define SHORT_DELAY() asm volatile("nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop")
 // 7-segment patterns (common cathode)
 // a–g, dp: MSB = a, LSB = dp
-const uint8_t seg_table[11] = {
-    0b00111111, // 0
-    0b00000110, // 1
-    0b01011011, // 2
-    0b01001111, // 3
-    0b01100110, // 4
-    0b01101101, // 5
-    0b01111101, // 6
-    0b00000111, // 7
-    0b01111111, // 8
-    0b01101111, // 9
-    0b00000000, // 10 means no display
-};
 // const uint8_t seg_table[11] = {
-//     0b00000001, //test segment a
-//     0b00000010, //test segment b
-//     0b00000100, //test segment c
-//     0b00001000, //test segment d
-//     0b00010000, //test segment e
-//     0b00100000, //test segment f
-//     0b01000000, //test segment g
-//     0b10000000, //test segment dp
-//     0b10000000, //test segment dp
-//     0b10000000, //test segment dp
+//     0b00111111, // 0
+//     0b00000110, // 1
+//     0b01011011, // 2
+//     0b01001111, // 3
+//     0b01100110, // 4
+//     0b01101101, // 5
+//     0b01111101, // 6
+//     0b00000111, // 7
+//     0b01111111, // 8
+//     0b01101111, // 9
 //     0b00000000, // 10 means no display
 // };
+const uint8_t seg_table[11] = {
+    0b00000001, //test segment a
+    0b00000010, //test segment b
+    0b00000100, //test segment c
+    0b00001000, //test segment d
+    0b00010000, //test segment e
+    0b00100000, //test segment f
+    0b01000000, //test segment g
+    0b10000000, //test segment dp
+    0b10000000, //test segment dp
+    0b10000000, //test segment dp
+    0b00000000, // 10 means no display
+};
 
 
 // variables for battery(charge) level indication (servo)
@@ -241,6 +241,7 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
       //txFrame[joy_x_byte] = 200;
       //txFrame[joy_y_byte] = 200;
       DB_printf("joystick X: %d Y: %d\n", txFrame[joy_x_byte], txFrame[joy_y_byte]);
+      DB_printf("joystick ADC values are %d and %d\n", Curr_AD_Val[1], Curr_AD_Val[0]);
 
       ES_Timer_InitTimer(JoystickScan_TIMER, ADC_scan_interval);
     }
