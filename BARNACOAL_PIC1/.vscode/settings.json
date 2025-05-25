@@ -1,0 +1,6 @@
+{
+    "mplab.clangd.arguments": [
+        "--compile-commands-dir=${workspaceRoot}\\_build\\BARNACOAL_PIC1\\default"
+    ],
+    "mplab.clangd.path": "c:\\Program Files\\Microchip\\xc32\\v4.60\\bin\\xc32-clangd.exe"
+}

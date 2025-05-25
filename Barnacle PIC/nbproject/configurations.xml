@@ -84,7 +84,7 @@
         <targetPluginBoard></targetPluginBoard>
         <platformTool>snap</platformTool>
         <languageToolchain>XC32</languageToolchain>
-        <languageToolchainVersion>4.30</languageToolchainVersion>
+        <languageToolchainVersion>4.60</languageToolchainVersion>
         <platform>3</platform>
       </toolsSet>
       <packs>
@@ -147,26 +147,6 @@
       <C32-AR>
         <property key="additional-options-chop-files" value="false"/>
       </C32-AR>
-      <C32-AS>
-        <property key="assembler-symbols" value=""/>
-        <property key="enable-symbols" value="true"/>
-        <property key="exclude-floating-point-library" value="false"/>
-        <property key="expand-macros" value="false"/>
-        <property key="extra-include-directories-for-assembler" value=""/>
-        <property key="extra-include-directories-for-preprocessor" value=""/>
-        <property key="false-conditionals" value="false"/>
-        <property key="generate-16-bit-code" value="false"/>
-        <property key="generate-micro-compressed-code" value="false"/>
-        <property key="keep-locals" value="false"/>
-        <property key="list-assembly" value="false"/>
-        <property key="list-source" value="false"/>
-        <property key="list-symbols" value="false"/>
-        <property key="oXC32asm-list-to-file" value="false"/>
-        <property key="omit-debug-dirs" value="false"/>
-        <property key="omit-forms" value="false"/>
-        <property key="preprocessor-macros" value=""/>
-        <property key="warning-level" value=""/>
-      </C32-AS>
       <C32-CO>
         <property key="coverage-enable" value=""/>
         <property key="stack-guidance" value="false"/>
@@ -774,17 +754,15 @@
         <property key="UART1" value="true"/>
         <property key="UART2" value="true"/>
         <property key="USB" value="true"/>
-        <property key="communication.interface" value="swd"/>
+        <property key="communication.interface"
+                  value="${communication.interface.default}"/>
         <property key="communication.interface.jtag" value="2wire"/>
         <property key="communication.speed" value="${communication.speed.default}"/>
         <property key="debugoptions.debug-startup" value="Use system settings"/>
         <property key="debugoptions.reset-behaviour" value="Use system settings"/>
         <property key="debugoptions.simultaneous.debug" value="false"/>
         <property key="debugoptions.useswbreakpoints" value="false"/>
-        <property key="event.recorder.enabled" value="false"/>
-        <property key="event.recorder.scvd.files" value=""/>
         <property key="freeze.timers" value="false"/>
-        <property key="lastid" value=""/>
         <property key="memories.aux" value="false"/>
         <property key="memories.bootflash" value="true"/>
         <property key="memories.configurationmemory" value="true"/>
@@ -857,17 +835,15 @@
         <property key="UART1" value="true"/>
         <property key="UART2" value="true"/>
         <property key="USB" value="true"/>
-        <property key="communication.interface" value="swd"/>
+        <property key="communication.interface"
+                  value="${communication.interface.default}"/>
         <property key="communication.interface.jtag" value="2wire"/>
         <property key="communication.speed" value="${communication.speed.default}"/>
         <property key="debugoptions.debug-startup" value="Use system settings"/>
         <property key="debugoptions.reset-behaviour" value="Use system settings"/>
         <property key="debugoptions.simultaneous.debug" value="false"/>
         <property key="debugoptions.useswbreakpoints" value="false"/>
-        <property key="event.recorder.enabled" value="false"/>
-        <property key="event.recorder.scvd.files" value=""/>
         <property key="freeze.timers" value="false"/>
-        <property key="lastid" value=""/>
         <property key="memories.aux" value="false"/>
         <property key="memories.bootflash" value="true"/>
         <property key="memories.configurationmemory" value="true"/>
