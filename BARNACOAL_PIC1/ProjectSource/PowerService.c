@@ -168,7 +168,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
 
     case Idle:
     {
-      DB_printf("Entered Idle State\r\n");
+      //DB_printf("Entered Idle State\r\n");
       switch (ThisEvent.EventType)
       {
         case ES_UNPAIRED:  
@@ -210,7 +210,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
         {  
           if (ThisEvent.EventParam == POWER_TIMER)
           {
-            Power -= 1;
+            //Power -= 1;
             if (Power == NO_POWER)
             {
               ES_Event_t Event2Post;
@@ -231,7 +231,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
 
     case Power_On:       
     {
-      DB_printf("Entered Power_ON State\r\n");
+      //DB_printf("Entered Power_ON State\r\n");
       switch (ThisEvent.EventType)
       {
         case ES_COMMAND:
@@ -254,7 +254,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
           if (ThisEvent.EventParam == POWER_TIMER)
           {
             ES_Timer_InitTimer(POWER_TIMER, DECHARGE_PERIOD);
-            Power -= 1;
+            //Power -= 1;
             if (Power == NO_POWER)
             {
               ES_Event_t Event2Post;
@@ -293,7 +293,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
 
     case Recharging:       
     {
-      DB_printf("Entered Recharging State\r\n");
+      //DB_printf("Entered Recharging State\r\n");
       switch (ThisEvent.EventType)
       {
         case ES_CHARGE:  

@@ -399,8 +399,8 @@ void PWMUpdate(uint8_t vel, uint8_t om)
     return;
   }
   else {
-    ScaledLeft = vel + (int8_t)(om - 127) / TURN_WEIGHT;
-    ScaledRight = vel - (int8_t)(om - 127) / TURN_WEIGHT;
+    ScaledLeft = (int8_t)(vel + (om - 127)) / TURN_WEIGHT;
+    ScaledRight = (int8_t)(vel - (om - 127)) / TURN_WEIGHT;
 
     //
     if(ScaledLeft > 255)
