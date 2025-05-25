@@ -245,7 +245,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
           Power += 6;
           Power = (Power<FULL_POWER)?Power:FULL_POWER; // Limit power to FULL_POWER
           CurrentState = Recharging;
-          DB_printf("ES_CHARGE in Power_On State\r\n");
+          // DB_printf("ES_CHARGE in Power_On State\r\n");
         }
         break;
 
