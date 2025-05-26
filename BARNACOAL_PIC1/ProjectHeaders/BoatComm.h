@@ -26,7 +26,7 @@ extern uint8_t buttonByte; // rxIndex = 11
 // Public Function Prototypes
 typedef enum
 {
-  InitState, Receiving, Transmitting
+  InitState, WaitingForPairing, Receiving, Transmitting
 }UARTState_t;
 
 bool InitBoatComm(uint8_t Priority);

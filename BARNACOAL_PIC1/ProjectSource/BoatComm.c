@@ -184,23 +184,16 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
       if (ThisEvent.EventType == ES_INIT)    // only respond to ES_Init
       {
         ES_Timer_InitTimer(BOATCOMM_TIMER, FOUR_SEC); // start 4 sec unpair timer
-        CurrentState = Receiving;
+        CurrentState = WaitingForPairing;
       }
     }
     break;
-
-    case Receiving:
-    { 
-      // If not receicing ES_PACKET_IN for 4 secs, unpair boat from controller and reset
-      if (ThisEvent.EventType == ES_TIMEOUT && ThisEvent.EventParam == BOATCOMM_TIMER)
-      { 
-        // 1. Post ES_UNPAIRED to BoatFSMs
-        ES_Event_t unpairEvent;
-        unpairEvent.EventType = ES_UNPAIRED; 
-        PostDrivetrainService(unpairEvent);
-        PostPowerService(unpairEvent);
-
-        // 2. Reset all boat variables
+    
+    case WaitingForPairing: 
+    {
+      DB_printf("Entered WaitingForPairing State\r\n");
+      if (ThisEvent.EventType == ES_PACKET_IN) {
+        // Reset all boat variables
         isPaired = false; 
         hasSentPairingMessage = false;
         pairingMessageCounter = 0;
@@ -210,9 +203,41 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
         joystickOneByte = 0xFF; 
         joystickTwoByte = 0xFF; 
         buttonByte = 0xFF; 
+
+        ParseAPIFrame();
+        if (statusByte == 0x02 && !isPaired) {
+          isPaired = true; 
+          DB_printf("Post ES_PAIRED to BoatFSMs\r\n");
+          ES_Event_t pairEvent;
+          pairEvent.EventType = ES_PAIRED;
+          // sourceAddressMSB and sourceAddressLSB are directly accessible at boatFSMs
+          PostDrivetrainService(pairEvent); // Post an event to BoatComm FSM
+          PostPowerService(pairEvent);
+          CurrentState = Receiving;
+        }
+        else {
+          // Ignore excessive pairing requests or from other sources
+        }
+      }
+    }
+    case Receiving:
+    { 
+      // If not receicing ES_PACKET_IN for 4 secs, unpair boat from controller and reset
+      DB_printf("Entered Receiving State\r\n");
+      if (ThisEvent.EventType == ES_TIMEOUT && ThisEvent.EventParam == BOATCOMM_TIMER)
+      { 
+        DB_printf("Debug 1\r\n");
+        // 1. Post ES_UNPAIRED to BoatFSMs
+        ES_Event_t unpairEvent;
+        unpairEvent.EventType = ES_UNPAIRED; 
+        PostDrivetrainService(unpairEvent);
+        PostPowerService(unpairEvent);
+        DB_printf("Post ES_UNPAIRED to BoatFSMs\r\n");
+        CurrentState = WaitingForPairing;
       }
       else if (ThisEvent.EventType == ES_PACKET_IN)
       {
+        DB_printf("Debug 2\r\n");
         // 1. Restart 4sec Timer
         ES_Timer_InitTimer(BOATCOMM_TIMER, FOUR_SEC);
 
@@ -295,6 +320,7 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
             }
             else {
               DB_printf("Error: Boat paired, invalid pairing command\r\n");
+              CurrentState = WaitingForPairing;
               // Ignore excessive pairing requests or from other sources
             }
           }
@@ -306,9 +332,15 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
           }
           break; 
         }
-        CurrentState = Transmitting; 
+        if (CurrentState == Receiving) {
+          CurrentState = Transmitting; 
+        }
+        else {
+          // DB_printf("Error: check state transition in Receiving State\r\n");
+        }
       }
       else {
+        DB_printf("Debug 3\r\n");
         // Does not receive ES_TIMEOUT or ES_PACKET_IN, stay in current state
       }
     }
