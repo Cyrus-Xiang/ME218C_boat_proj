@@ -276,6 +276,7 @@ typedef enum
   ES_IMU_IS_CHARGING,
   ES_IMU_IS_NOT_CHARGING,
   ES_BOAT_PAIRED, //sent from communication service to controllerFSM
+  ES_BOAT_UNPAIRED
 }ES_EventType_t;
 
 /****************************************************************************/
