@@ -42,6 +42,7 @@
 /*---------------------------- Module Variables ---------------------------*/
 // with the introduction of Gen2, we need a module level Priority variable
 #define ONE_SEC 1000
+#define FOUR_SEC (4*ONE_SEC)
 #define ONEFIFTH_SEC (ONE_SEC / 5)
 #define FRAME_LEN_TX 13
 #define FRAME_LEN_RX 10
@@ -221,10 +222,22 @@ ES_Event_t RunControllerComm(ES_Event_t ThisEvent)
         // 2. Restart 200ms timer
         ES_Timer_InitTimer(CTRLCOMM_TIMER, ONEFIFTH_SEC);
       }
+      else if (ThisEvent.EventParam == UNPAIR_TIMER) {
+        // Haven't heard back from Boat 4 sec, post ES_BOAT_UNPAIRED to controllerFSM
+        ES_Event_t unpairEvent;
+        unpairEvent.EventType = ES_BOAT_UNPAIRED;
+        PostcontrollerFSM(unpairEvent); 
+        DB_printf("Post Boat unpaired event to controllerFSM\r\n");
+      }
+      else {
+        DB_printf("Error: Unknown type behavior\r\n");
+      }
     }
     break;
 
     case ES_PACKET_IN: // Received packet from Boat
+      // Restart 4sec timer
+      ES_Timer_InitTimer(UNPAIR_TIMER, FOUR_SEC);
       ParseAPIFrame(); // Sanity check and update sourceAddress and powerByte
       //DB_printf("\rsourceAddressMSB = %d\r\n", sourceAddressMSB);
       //DB_printf("\rsourceAddressLSB = %d\r\n", sourceAddressLSB);
