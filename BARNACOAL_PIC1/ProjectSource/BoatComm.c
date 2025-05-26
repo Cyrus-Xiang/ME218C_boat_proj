@@ -271,8 +271,9 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
             if (isPaired) {
               ES_Event_t chargeEvent;
               chargeEvent.EventType = ES_CHARGE; 
-              // PostDrivetrainService(chargeEvent);
+              PostDrivetrainService(chargeEvent);
               PostPowerService(chargeEvent);
+              DB_printf("Post ES_CHARGE to BoatFSMs\r\n");
             }
             else {
               // If boat unpaired, ignore packet

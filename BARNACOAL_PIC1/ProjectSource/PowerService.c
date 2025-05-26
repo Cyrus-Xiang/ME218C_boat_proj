@@ -168,19 +168,12 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
 
     case Idle:
     {
+      //DB_printf("Entered Idle State\r\n");
       switch (ThisEvent.EventType)
       {
         case ES_UNPAIRED:  
         {  
           CurrentState = Pairing;
-        }
-        break;
-
-        case ES_DUMP:  
-        {  
-          ES_Timer_InitTimer(POWER_TIMER, DECHARGE_PERIOD);
-          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
-          CurrentState =  Power_On;
         }
         break;
 
@@ -203,6 +196,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
           Power += 6;
           Power = (Power<FULL_POWER)?Power:FULL_POWER; // Limit power to FULL_POWER
           CurrentState = Recharging;
+          DB_printf("ES_CHARGE in Idle State\r\n");
         }
         break;
 
@@ -216,12 +210,13 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
         {  
           if (ThisEvent.EventParam == POWER_TIMER)
           {
-            Power -= 1;
+            //Power -= 1;
             if (Power == NO_POWER)
             {
-              ES_Event_t noPowerEvent;
-              noPowerEvent.EventType = ES_NOPWR; 
-              PostDrivetrainService(noPowerEvent);
+              ES_Event_t Event2Post;
+              Event2Post.EventType = ES_NOPWR;
+              PostPowerService(Event2Post);
+              PostDrivetrainService(Event2Post);
               CurrentState = No_Power;
             }
           }
@@ -236,6 +231,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
 
     case Power_On:       
     {
+      //DB_printf("Entered Power_ON State\r\n");
       switch (ThisEvent.EventType)
       {
         case ES_COMMAND:
@@ -249,6 +245,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
           Power += 6;
           Power = (Power<FULL_POWER)?Power:FULL_POWER; // Limit power to FULL_POWER
           CurrentState = Recharging;
+          // DB_printf("ES_CHARGE in Power_On State\r\n");
         }
         break;
 
@@ -257,27 +254,16 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
           if (ThisEvent.EventParam == POWER_TIMER)
           {
             ES_Timer_InitTimer(POWER_TIMER, DECHARGE_PERIOD);
-            Power -= 1;
+            //Power -= 1;
             if (Power == NO_POWER)
             {
-              ES_Event_t noPowerEvent;
-              noPowerEvent.EventType = ES_NOPWR; 
-              PostDrivetrainService(noPowerEvent);
+              ES_Event_t Event2Post;
+              Event2Post.EventType = ES_NOPWR;
+              PostPowerService(Event2Post);
+              PostDrivetrainService(Event2Post);
               CurrentState = No_Power;
             }
           }
-        }
-        break;
-
-        case ES_DUMP:
-        {
-          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
-        }
-        break;
-
-        case ES_DUMP:
-        {
-          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
         }
         break;
 
@@ -285,11 +271,13 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
         {
           CurrentState = Idle;
         }
+        break;
 
         case ES_NOPWR:
         {
           CurrentState = No_Power;
         }
+        break;
 
         case ES_UNPAIRED:  
         {  
@@ -305,12 +293,14 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
 
     case Recharging:       
     {
+      //DB_printf("Entered Recharging State\r\n");
       switch (ThisEvent.EventType)
       {
         case ES_CHARGE:  
         {  
           Power += 6;
           Power = (Power<FULL_POWER)?Power:FULL_POWER; // Limit power to FULL_POWER
+          DB_printf("ES_CHARGE in Recharging State\r\n");
         }
         break;
 
@@ -325,15 +315,6 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
         {
           ES_Timer_InitTimer(POWER_TIMER, DECHARGE_PERIOD);
           CurrentState = Power_On;
-          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
-        }
-        break;
-
-        case ES_DUMP:
-        {
-          ES_Timer_InitTimer(POWER_TIMER, DECHARGE_PERIOD);
-          CurrentState = Power_On;
-          // ES_Timer_InitTimer(IDLE_TIMER, IDLE_TIME);
         }
         break;
 
@@ -341,6 +322,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
         {
           CurrentState = Idle;
         }
+        break;
 
         case ES_UNPAIRED:  
         {  
@@ -384,8 +366,6 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
   }                                   
   return ReturnEvent;
 }
-
-
 /***************************************************************************
  private functions
  ***************************************************************************/

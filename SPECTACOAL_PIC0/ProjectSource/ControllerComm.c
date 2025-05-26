@@ -31,6 +31,7 @@
 #include "terminal.h"
 #include "dbprintf.h"
 #include <sys/attribs.h>
+#include <stdlib.h>
 
 /*----------------------------- Module Defines ----------------------------*/
 
@@ -51,6 +52,9 @@
 #define DUMP_BUTTON_PRESSED 0x01
 #define ANCHOR_BUTTON_PRESSED 0x02
 #define BOTH_BUTTON_PRESSED 0x03
+
+#define JOYSTICK_NEUTRAL 127
+#define JOYSTICK_DEADZONE_MARGIN 15
 
 uint8_t txFrame[] = {
   0x7E,          // Start delimiter
@@ -208,6 +212,8 @@ ES_Event_t RunControllerComm(ES_Event_t ThisEvent)
           }
         }
         else { // isPaired
+          // check txFrame[9] and txFrame[10] respectively
+          setDeadZone();
           if (txFrame[11] != NO_BUTTON_PRESSED) {
             SendFrame();
             DB_printf("Reset buttonByte\r\n");
@@ -440,6 +446,16 @@ void SendFrame() {
 void printTxFrame() {
   for (uint8_t i = 0; i < FRAME_LEN_TX; i++) {
     DB_printf("txFrame[i] = %d\r\n", txFrame[i]);
+  }
+}
+
+void setDeadZone() {
+  // check txFrame[9] and txFrame[10]. If within deadzone, manually set to NEUTRAL
+  if (abs((int)txFrame[9] - JOYSTICK_NEUTRAL) <= JOYSTICK_DEADZONE_MARGIN) {
+    txFrame[9] = JOYSTICK_NEUTRAL;
+  }
+  if (abs((int)txFrame[10] - JOYSTICK_NEUTRAL) <= JOYSTICK_DEADZONE_MARGIN) {
+    txFrame[10] = JOYSTICK_NEUTRAL;
   }
 }
 /*------------------------------- Footnotes -------------------------------*/

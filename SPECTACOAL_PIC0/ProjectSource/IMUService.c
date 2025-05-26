@@ -60,8 +60,8 @@ static uint8_t MyPriority;
 #define STATUS_REG 0x1E
 #define OUTX_L_XL 0x28
 static uint32_t SPI_freq;
-#define gyro_spinning_threshold 20000 // threshold for detecting that it is spinning
-#define acc_gravity_threshold 13000   // threshold for detecting if its upside down
+#define gyro_spinning_threshold 13000 // threshold for detecting that it is spinning
+#define acc_gravity_threshold 13000  // threshold for detecting if its upside down
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************
  Function
@@ -160,21 +160,21 @@ ES_Event_t RunIMUService(ES_Event_t ThisEvent)
     //DB_printf("Accel X: %d, Y: %d, Z: %d\r\n", accel.x, accel.y, accel.z);
 
     static bool is_right_side_up = true; // assume it is right side up initially
-    if (accel.y > acc_gravity_threshold)
+    if (accel.z < -acc_gravity_threshold)
     {
       is_right_side_up = false; // IMU is upside down
-      DB_printf("IMU is upside down\r\n");
+      //DB_printf("IMU is upside down\r\n");
       ES_Event_t Event2Post;
       Event2Post.EventType = ES_IMU_UP_SIDE_DOWN;
       PostcontrollerFSM(Event2Post);
-      ES_Event_t Event2Post2;
-      Event2Post2.EventType = ES_IMU_IS_CHARGING;
-      PostcontrollerFSM(Event2Post2);
+      // ES_Event_t Event2Post2;
+      // Event2Post2.EventType = ES_IMU_IS_CHARGING;
+      // PostcontrollerFSM(Event2Post2);
     }
-    else if (accel.y < -acc_gravity_threshold)
+    else if (accel.z > acc_gravity_threshold)
     {
       is_right_side_up = true; // IMU is right side up
-      DB_printf("IMU is right side up\r\n");
+      //DB_printf("IMU is right side up\r\n");
       ES_Event_t Event2Post;
       Event2Post.EventType = ES_IMU_RIGHT_SIDE_UP;
       PostcontrollerFSM(Event2Post);
@@ -187,7 +187,7 @@ ES_Event_t RunIMUService(ES_Event_t ThisEvent)
       GyroData_t gyro = LSM6DS33_ReadGyroXYZ();
       // DB_printf("Gyro X: %d, Y: %d, Z: %d\r\n", gyro.x, gyro.y, gyro.z);stControllerComm(Event2Post);
       //check if the absolute value of the y-axis gyro reading exceeds the threshold
-      if(gyro.y > gyro_spinning_threshold || gyro.y < -gyro_spinning_threshold && !is_spinning)
+      if(gyro.z > gyro_spinning_threshold || gyro.z < -gyro_spinning_threshold && !is_spinning)
       {
         // IMU is spinning
         is_spinning = true; // update the spinning state
@@ -196,7 +196,7 @@ ES_Event_t RunIMUService(ES_Event_t ThisEvent)
         Event2Post.EventType = ES_IMU_IS_CHARGING;
         PostcontrollerFSM(Event2Post);
       }
-      else if (gyro.y < gyro_spinning_threshold && gyro.y > -gyro_spinning_threshold && is_spinning)
+      else if (gyro.z < gyro_spinning_threshold && gyro.z > -gyro_spinning_threshold && is_spinning)
       {
         // IMU is not spinning
         is_spinning = false; // update the spinning state

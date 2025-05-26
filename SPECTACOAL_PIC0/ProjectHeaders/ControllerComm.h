@@ -32,5 +32,6 @@ void SendFrame();
 void ProcessUARTByte(uint8_t byte); 
 void ParseAPIFrame();
 void printTxFrame();
+void setDeadZone();
 #endif /* ServTemplate_H */
 
