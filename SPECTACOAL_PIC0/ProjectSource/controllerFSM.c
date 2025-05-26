@@ -234,8 +234,8 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
       ADC_MultiRead(Curr_AD_Val);
       // update the joystick values in the txFrame
 
-      txFrame[joy_x_byte] = (uint8_t)(Curr_AD_Val[1] >> 2); // right shift to get 8 bits (divide by 4)
-      txFrame[joy_y_byte] = (uint8_t)(Curr_AD_Val[0] >> 2); // right shift to get 8 bits (divide by 4)
+      txFrame[joy_x_byte] = joy_stick_max - (uint8_t)(Curr_AD_Val[1] >> 2); // right shift to get 8 bits (divide by 4)
+      txFrame[joy_y_byte] = joy_stick_max - (uint8_t)(Curr_AD_Val[0] >> 2); // right shift to get 8 bits (divide by 4)
 
       //TODO: Debugging
       //txFrame[joy_x_byte] = 200;

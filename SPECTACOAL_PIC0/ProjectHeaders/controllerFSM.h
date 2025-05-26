@@ -17,6 +17,7 @@
 #define driving_status_msg 0x00
 #define charging_status_msg 0x01
 #define joy_stick_neutral_msg 127
+#define joy_stick_max 255
 
 enum{
 delimiter_byte, length_msb_byte, length_lsb_byte,

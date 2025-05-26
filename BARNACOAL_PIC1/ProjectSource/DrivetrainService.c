@@ -55,7 +55,7 @@
 #define ONE_SEC 1000
 #define HALF_SEC ONE_SEC/2
 
-#define TURN_WEIGHT 2
+#define TURN_WEIGHT 0.8
 
 #define VELOCITY joystickOneByte
 #define OMEGA joystickTwoByte
@@ -399,29 +399,55 @@ void PWMUpdate(uint8_t vel, uint8_t om)
     return;
   }
   else {
-    ScaledLeft = (int8_t)(vel + (om - 127)) / TURN_WEIGHT;
-    ScaledRight = (int8_t)(vel - (om - 127)) / TURN_WEIGHT;
+    int16_t intScaledLeft = (int16_t)ScaledLeft;
+    int16_t intScaledRight = (int16_t)ScaledRight;
+    int16_t intVel = (int16_t)vel;
+    int16_t intOm = (int16_t)om;
 
-    //
-    if(ScaledLeft > 255)
-    {
-      ScaledLeft = 255;
-    }
-    if(ScaledRight > 255)
-    {
-      ScaledRight = 255;
-    }
-    if(ScaledLeft < 0)
-    {
-      ScaledLeft = 0;
-    }
-    if(ScaledRight < 0)
-    {
-      ScaledRight = 0;
-    }
+    intScaledLeft = (intVel + (intOm - 127));
+    intScaledRight = (intVel - (intOm - 127));
+    uint8_t PWMLeft;
+    uint8_t PWMRight;
 
-    uint8_t PWMLeft = PWM_MIN + (PWM_MAX - PWM_MIN) * ScaledLeft/255;
-    uint8_t PWMRight = PWM_MIN + (PWM_MAX - PWM_MIN) * ScaledRight/255;
+    //intScaledLeft = (intVel + (intOm - 127)) / TURN_WEIGHT;
+    //intScaledRight = (intVel - (intOm - 127)) / TURN_WEIGHT;
+
+    // Edge cases: vel 255, om 60, then intScaledleft = 188, intScaledRight = 322, should map to PWMleft ?, PWMRight 90
+    
+    // Edge cases: vel 255, om 0, then intScaledLeft = 128, intScaledRight = 382, should map to PWMleft 75, PWMRight 90
+    // Edge cases: vel 255, om 127, then intScaledleft = 255, intScaledRIght = 255, should map to PWMLeft 90, PWMRight 90
+    // Edge cases: vel 255, om 255, then intScaledLeft = 382, intScaledLeft = 127, should map to PWMleft 90, PWMRight 75
+
+    // Edge cases: vel 127, om 0, then intScaledLeft = 0, intScaledRight = 255, should map to PWMleft 60, PWMRight 90
+    // Edge cases: vel 127, om 127, then intScaledLeft = 0, intScaledRight = 0, should map to PWMleft 75, PWMRight 75
+    // Edge cases: vel 127, om 255, then intScaledLeft = 255, intScaledRight = 0, should map to PWMleft 90, PWMRight 60
+
+    // Edge cases: vel 0, om 0, then intScaledleft = -127, intScaledRight = 127, should map to PWMleft 75, PWMRight 60
+    // Edge cases: vel 0, om 127, then intScaledleft = 0, intScaledRight = 0 , should map to PWMleft 60, PWMRight 60
+    // Edge cases: vel 0, om 255, then intScaledleft = 127, intScaledRight = -127, should map to PWMleft 60, PWMRight 75
+
+    if (intScaledLeft > 255) {
+      intScaledLeft = 255;
+    }
+    if (intScaledRight > 255) {
+      intScaledRight = 255;
+    }
+    if (intScaledLeft < 0) {
+      intScaledLeft = 0;
+    }
+    if (intScaledRight < 0) {
+      intScaledRight = 0;
+    }
+    DB_printf("intVel = %d\r\n", intVel);
+    if (intVel >= NEUTRAL) {
+      DB_printf("Debug 1");
+      PWMLeft = PWM_OFF + (PWM_MAX - PWM_MIN) * (intScaledLeft - NEUTRAL)/255*TURN_WEIGHT;
+      PWMRight = PWM_OFF + (PWM_MAX - PWM_MIN) *(intScaledRight - NEUTRAL)/255*TURN_WEIGHT;
+    }
+    else {
+      PWMLeft = PWM_OFF + (PWM_MAX - PWM_MIN) * (intScaledRight - NEUTRAL)/255*TURN_WEIGHT;
+      PWMRight = PWM_OFF + (PWM_MAX - PWM_MIN) *(intScaledLeft - NEUTRAL)/255*TURN_WEIGHT;
+    }
     DB_printf("PWMLeft = %d PWMRight = %d\r\n", PWMLeft, PWMRight);
     OC1RS = PR * PWMLeft/100;
     OC2RS = PR * PWMRight/100;
