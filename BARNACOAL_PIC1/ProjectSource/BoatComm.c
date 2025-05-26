@@ -316,8 +316,32 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
 
     case Transmitting:
     {
-      updateTxFrame(); // updateTxFrame() accordingly
-      SendFrame(); // Send the 10-byte packet 
+      if (ThisEvent.EventType == ES_TIMEOUT && ThisEvent.EventParam == BOATCOMM_TIMER)
+      { 
+        // 1. Post ES_UNPAIRED to BoatFSMs
+        ES_Event_t unpairEvent;
+        unpairEvent.EventType = ES_UNPAIRED; 
+        PostDrivetrainService(unpairEvent);
+        PostPowerService(unpairEvent);
+
+        // 2. Reset all boat variables
+        isPaired = false; 
+        hasSentPairingMessage = false;
+        pairingMessageCounter = 0;
+        sourceAddressMSB = 0xFF; //IMPORTANT: RESET sourceAddressMSB and sourceAddressLSB !!!!!!
+        sourceAddressLSB = 0xFF; 
+        statusByte = 0xFF; 
+        joystickOneByte = 0xFF; 
+        joystickTwoByte = 0xFF; 
+        buttonByte = 0xFF; 
+      }
+      else { // This should be the routine
+        //DB_printf("Entered Transmitting State\r\n");
+        updateTxFrame(); // updateTxFrame() accordingly
+        //DB_printf("Finished UpdatingTxFrame\r\n");
+        SendFrame(); // Send the 10-byte packet 
+        //DB_printf("Finished SendingFrame\r\n");
+      }
       CurrentState = Receiving; // Transition back to Receicing State
     }
     break;
