@@ -162,6 +162,7 @@ bool InitcontrollerFSM(uint8_t Priority)
   TRISBbits.TRISB3 = 0; // drive mode indicator LED
   ANSELBbits.ANSB3 = 0; // digital pin
   drive_indicator_LED = 0; // turn off the LED
+  paired_LED_is_on = false;
   // configure pins and ADC for X Y information of joysticks
   config_joystick_ADC();
   config_buttons();
@@ -260,6 +261,8 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
         // DB_printf("charge byte is out of range so we don't update servo\n");
       }
     }
+  }else if (ThisEvent.EventType == ES_BOAT_UNPAIRED){
+    // InitcontrollerFSM(MyPriority);
   }
 
   switch (CurrentState)
@@ -468,7 +471,7 @@ static void adjust_7seg(uint8_t digit_input)
     SHORT_DELAY(); // Ensure clock low period
     bool bit_to_shift = (data >> i) & 0x01; // Get the bit to shift in
     SER_port = bit_to_shift;
-    DB_printf("shifting in bit %d at position %d\n", bit_to_shift, i);
+    //DB_printf("shifting in bit %d at position %d\n", bit_to_shift, i);
     SHORT_DELAY();
     SRCLK_port = 1; // Rising edge shifts in bit
     SHORT_DELAY();

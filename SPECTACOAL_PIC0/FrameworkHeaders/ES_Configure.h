@@ -333,7 +333,7 @@ typedef enum
 #define TIMER10_RESP_FUNC TIMER_UNUSED
 #define TIMER11_RESP_FUNC TIMER_UNUSED
 #define TIMER12_RESP_FUNC TIMER_UNUSED
-#define TIMER13_RESP_FUNC TIMER_UNUSED
+#define TIMER13_RESP_FUNC PostControllerComm
 #define TIMER14_RESP_FUNC PostControllerComm
 #define TIMER15_RESP_FUNC TIMER_UNUSED
 
@@ -346,6 +346,7 @@ typedef enum
 
 //#define SERVICE0_TIMER 15
 #define CTRLCOMM_TIMER 14
+#define UNPAIR_TIMER 13
 #define JoystickScan_TIMER 0
 #define ServoUpdate_TIMER 1
 #define sevenSeg_flash_TIMER 2
