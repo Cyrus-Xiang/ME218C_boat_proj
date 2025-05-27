@@ -39,7 +39,7 @@
 /* prototypes for private functions for this service.They should be functions
    relevant to the behavior of this service
 */
-
+static void stopAllTimers(void);
 /*---------------------------- Module Variables ---------------------------*/
 // with the introduction of Gen2, we need a module level Priority variable
 #define ONE_SEC 1000
@@ -57,37 +57,38 @@
 #define JOYSTICK_NEUTRAL 127
 #define JOYSTICK_DEADZONE_MARGIN 15
 
-uint8_t txFrame[] = {
-  0x7E,          // Start delimiter
-  0x00, 0x09,    // Length (MSB, LSB) = 8 bytes of data after this field
-  0x01,          // Frame type = TX (16-bit address)
-  0x00,          // Frame ID (0 = no ACK)
-  0xFF, 0xFF,    // Destination address = 0xFFFF (uninitialized address)
-  0x01,          // Options = 0x01 to disable ACK
-  0x00, 0x7F, 0x7F, 0x00,// TEST: Pairing: 0x02 (byte 9), 0x00 (byte 10), 0x00 (byte 11), 0x00 (byte 12)
-  0x00           // Checksum (computed as 0xFF - sum of bytes after 0x7E)
-};
+uint8_t txFrame[13]; 
+// = {
+//   0x7E,          // Start delimiter
+//   0x00, 0x09,    // Length (MSB, LSB) = 8 bytes of data after this field
+//   0x01,          // Frame type = TX (16-bit address)
+//   0x00,          // Frame ID (0 = no ACK)
+//   0xFF, 0xFF,    // Destination address = 0xFFFF (uninitialized address)
+//   0x01,          // Options = 0x01 to disable ACK
+//   0x00, 0x7F, 0x7F, 0x00,// TEST: Pairing: 0x02 (byte 9), 0x00 (byte 10), 0x00 (byte 11), 0x00 (byte 12)
+//   0x00           // Checksum (computed as 0xFF - sum of bytes after 0x7E)
+// };
 
 // Module variables
-static bool isPaired = false;
-static bool hasAnchorMSGSent = false;
-static bool hasDumpMSGSent = false;
-static uint8_t buttonMSGCounter = 0; 
+static bool isPaired;
+static bool hasAnchorMSGSent;
+static bool hasDumpMSGSent;
+static uint8_t buttonMSGCounter; 
 static uint8_t MyPriority;
 
 // Variables For Receiving
-static volatile uint8_t rxByte = 0xFF; // default to 0xFF
+static volatile uint8_t rxByte; // default to 0xFF
 static volatile uint8_t rxBuffer[FRAME_LEN_RX];                                           
-static volatile uint8_t rxIndex = 0;
-static volatile uint16_t expectedLength = 0;
-static volatile bool isReceiving = false;
+static volatile uint8_t rxIndex;
+static volatile uint16_t expectedLength;
+static volatile bool isReceiving;
 
 // Payload variables
-static uint8_t targetAddressMSB = 0xFF; // Modified based on input from ControllerFSM.c
-static uint8_t targetAddressLSB = 0xFF; // Modified based on input from ControllerFSM.c
-static uint8_t sourceAddressMSB = 0xFF; // Modified based on incoming packet from boat
-static uint8_t sourceAddressLSB = 0xFF; // Modified based on incoming packet from boat
-uint8_t powerByte = 0x00; // default to charge 0
+static uint8_t targetAddressMSB; // Modified based on input from ControllerFSM.c
+static uint8_t targetAddressLSB; // Modified based on input from ControllerFSM.c
+static uint8_t sourceAddressMSB; // Modified based on incoming packet from boat
+static uint8_t sourceAddressLSB; // Modified based on incoming packet from boat
+uint8_t powerByte; // default to charge 0
 
 
 /*------------------------------ Module Code ------------------------------*/
@@ -117,7 +118,41 @@ bool InitControllerComm(uint8_t Priority)
   /********************************************
    in here you write your initialization code
    *******************************************/
-  // pins I/O setup
+  // initialize all the variables
+  txFrame[0] = 0x7E; // Start delimiter
+  txFrame[1] = 0x00; // Length MSB
+  txFrame[2] = 0x09; // Length LSB = 8 bytes of data after this field
+  txFrame[3] = 0x01; // Frame type = TX (16-bit address)
+  txFrame[4] = 0x00; // Frame ID (0 = no ACK)
+  txFrame[5] = 0xFF; // Destination address MSB = 0xFFFF (uninitialized address)
+  txFrame[6] = 0xFF; // Destination address LSB = 0xFFFF (uninitialized address)
+  txFrame[7] = 0x01; // Options = 0x01 to disable ACK
+  txFrame[8] = 0x00; // TEST: Pairing: 0x02 (byte 9), 0x00 (byte 10), 0x00 (byte 11), 0x00 (byte 12)
+  txFrame[9] = 0x7F; // TEST: Pairing: 0x02 (byte 9), 0x00 (byte 10), 0x00 (byte 11), 0x00 (byte 12)
+  txFrame[10] = 0x7F; // TEST: Pairing: 0x02 (byte 9), 0x00 (byte 10), 0x00 (byte 11), 0x00 (byte 12)
+  txFrame[11] = 0x00; // TEST: Pairing: 0x02 (byte 9), 0x00 (byte 10), 0x00 (byte 11), 0x00 (byte 12)
+  txFrame[12] = 0x00; // Checksum (computed as 0xFF - sum of bytes after 0x7E)
+
+isPaired = false;
+hasAnchorMSGSent = false;
+hasDumpMSGSent = false;
+buttonMSGCounter = 0; 
+
+// Variables For Receiving
+rxByte = 0xFF; // default to 0xFF
+rxBuffer[FRAME_LEN_RX];                                           
+rxIndex = 0;
+expectedLength = 0;
+isReceiving = false;
+
+// Payload variables
+targetAddressMSB = 0xFF; // Modified based on input from ControllerFSM.c
+targetAddressLSB = 0xFF; // Modified based on input from ControllerFSM.c
+sourceAddressMSB = 0xFF; // Modified based on incoming packet from boat
+sourceAddressLSB = 0xFF; // Modified based on incoming packet from boat
+powerByte = 0x00; // default to charge 0
+
+// pins I/O setup
   puts("\r Entered InitControllerComm \r");
   // Setup UART module
   SetupUART(); 
@@ -234,6 +269,8 @@ ES_Event_t RunControllerComm(ES_Event_t ThisEvent)
         unpairEvent.EventType = ES_BOAT_UNPAIRED;
         PostcontrollerFSM(unpairEvent); 
         DB_printf("Post Boat unpaired event to controllerFSM\r\n");
+        stopAllTimers(); // Stop all timers related to this service
+        InitControllerComm(MyPriority); // Reinitialize the service
       }
       else {
         DB_printf("Error: Unknown type behavior\r\n");
@@ -470,6 +507,12 @@ void setDeadZone() {
   if (abs((int)txFrame[10] - JOYSTICK_NEUTRAL) <= JOYSTICK_DEADZONE_MARGIN) {
     txFrame[10] = JOYSTICK_NEUTRAL;
   }
+}
+
+static void stopAllTimers(void) {
+  // Stop all timers related to this service
+  ES_Timer_StopTimer(CTRLCOMM_TIMER);
+  ES_Timer_StopTimer(UNPAIR_TIMER);
 }
 /*------------------------------- Footnotes -------------------------------*/
 /*------------------------------ End of file ------------------------------*/
