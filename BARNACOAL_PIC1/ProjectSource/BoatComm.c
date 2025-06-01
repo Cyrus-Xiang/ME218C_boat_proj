@@ -188,19 +188,22 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
       }
     }
     break;
-
+    
     case Receiving:
     { 
       // If not receicing ES_PACKET_IN for 4 secs, unpair boat from controller and reset
+      // DB_printf("Entered Receiving State\r\n");
       if (ThisEvent.EventType == ES_TIMEOUT && ThisEvent.EventParam == BOATCOMM_TIMER)
       { 
+        // DB_printf("Debug 1\r\n");
         // 1. Post ES_UNPAIRED to BoatFSMs
         ES_Event_t unpairEvent;
         unpairEvent.EventType = ES_UNPAIRED; 
         PostDrivetrainService(unpairEvent);
         PostPowerService(unpairEvent);
+        DB_printf("Post ES_UNPAIRED to BoatFSMs\r\n");
 
-        // 2. Reset all boat variables
+        // 2. // Reset all boat variables
         isPaired = false; 
         hasSentPairingMessage = false;
         pairingMessageCounter = 0;
@@ -213,6 +216,7 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
       }
       else if (ThisEvent.EventType == ES_PACKET_IN)
       {
+        // DB_printf("Debug 2\r\n");
         // 1. Restart 4sec Timer
         ES_Timer_InitTimer(BOATCOMM_TIMER, FOUR_SEC);
 
@@ -309,6 +313,7 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
         CurrentState = Transmitting; 
       }
       else {
+        // DB_printf("Debug 3\r\n");
         // Does not receive ES_TIMEOUT or ES_PACKET_IN, stay in current state
       }
     }
@@ -316,8 +321,32 @@ ES_Event_t RunBoatComm(ES_Event_t ThisEvent)
 
     case Transmitting:
     {
-      updateTxFrame(); // updateTxFrame() accordingly
-      SendFrame(); // Send the 10-byte packet 
+      if (ThisEvent.EventType == ES_TIMEOUT && ThisEvent.EventParam == BOATCOMM_TIMER)
+      { 
+        // 1. Post ES_UNPAIRED to BoatFSMs
+        ES_Event_t unpairEvent;
+        unpairEvent.EventType = ES_UNPAIRED; 
+        PostDrivetrainService(unpairEvent);
+        PostPowerService(unpairEvent);
+
+        // 2. Reset all boat variables
+        isPaired = false; 
+        hasSentPairingMessage = false;
+        pairingMessageCounter = 0;
+        sourceAddressMSB = 0xFF; //IMPORTANT: RESET sourceAddressMSB and sourceAddressLSB !!!!!!
+        sourceAddressLSB = 0xFF; 
+        statusByte = 0xFF; 
+        joystickOneByte = 0xFF; 
+        joystickTwoByte = 0xFF; 
+        buttonByte = 0xFF; 
+      }
+      else { // This should be the routine
+        //DB_printf("Entered Transmitting State\r\n");
+        updateTxFrame(); // updateTxFrame() accordingly
+        //DB_printf("Finished UpdatingTxFrame\r\n");
+        SendFrame(); // Send the 10-byte packet 
+        //DB_printf("Finished SendingFrame\r\n");
+      }
       CurrentState = Receiving; // Transition back to Receicing State
     }
     break;

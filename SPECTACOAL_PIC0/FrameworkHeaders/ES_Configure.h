@@ -33,7 +33,7 @@
 /****************************************************************************/
 // This macro determines that nuber of services that are *actually* used in
 // a particular application. It will vary in value from 1 to MAX_NUM_SERVICES
-#define NUM_SERVICES 5
+#define NUM_SERVICES 4
 
 /****************************************************************************/
 // These are the definitions for Service 0, the lowest priority service.
@@ -57,11 +57,11 @@
 // These are the definitions for Service 1
 #if NUM_SERVICES > 1
 // the header file with the public function prototypes
-#define SERV_1_HEADER "ControllerComm.h"
+#define SERV_1_HEADER "IMUService.h"
 // the name of the Init function
-#define SERV_1_INIT InitControllerComm
+#define SERV_1_INIT InitIMUService
 // the name of the run function
-#define SERV_1_RUN RunControllerComm
+#define SERV_1_RUN RunIMUService
 // How big should this services Queue be?
 #define SERV_1_QUEUE_SIZE 3
 #endif
@@ -83,11 +83,11 @@
 // These are the definitions for Service 3
 #if NUM_SERVICES > 3
 // the header file with the public function prototypes
-#define SERV_3_HEADER "KeyboardService.h"
+#define SERV_3_HEADER "ControllerComm.h"
 // the name of the Init function
-#define SERV_3_INIT InitKeyboardService
+#define SERV_3_INIT InitControllerComm
 // the name of the run function
-#define SERV_3_RUN RunKeyboardService
+#define SERV_3_RUN RunControllerComm
 // How big should this services Queue be?
 #define SERV_3_QUEUE_SIZE 3
 #endif
@@ -276,6 +276,7 @@ typedef enum
   ES_IMU_IS_CHARGING,
   ES_IMU_IS_NOT_CHARGING,
   ES_BOAT_PAIRED, //sent from communication service to controllerFSM
+  ES_BOAT_UNPAIRED
 }ES_EventType_t;
 
 /****************************************************************************/
@@ -332,7 +333,7 @@ typedef enum
 #define TIMER10_RESP_FUNC TIMER_UNUSED
 #define TIMER11_RESP_FUNC TIMER_UNUSED
 #define TIMER12_RESP_FUNC TIMER_UNUSED
-#define TIMER13_RESP_FUNC TIMER_UNUSED
+#define TIMER13_RESP_FUNC PostControllerComm
 #define TIMER14_RESP_FUNC PostControllerComm
 #define TIMER15_RESP_FUNC TIMER_UNUSED
 
@@ -345,6 +346,7 @@ typedef enum
 
 //#define SERVICE0_TIMER 15
 #define CTRLCOMM_TIMER 14
+#define UNPAIR_TIMER 13
 #define JoystickScan_TIMER 0
 #define ServoUpdate_TIMER 1
 #define sevenSeg_flash_TIMER 2

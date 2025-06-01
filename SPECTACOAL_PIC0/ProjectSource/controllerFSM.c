@@ -48,6 +48,7 @@ static void enterDriveMode_s(void);
 static void exitDriveMode_s(void);
 static void enterChargeMode_s(void);
 static void exitChargeMode_s(void);
+static void stopAllTimers(void); // for resetting the FSM
 /*---------------------------- Module Variables ---------------------------*/
 // everybody needs a state variable, you may need others as well.
 // type of state variable should match htat of enum in header file
@@ -62,18 +63,7 @@ static uint8_t boat_selected = 6; // default to boat 6
 static uint8_t max_boat_number = 6;
 const static uint8_t boat_addresses_LSB[6] = {0x81, 0x82, 0x83, 0x84, 0x85, 0x86}; 
 
-/*
-uint8_t txFrame[] = {
-  0x7E,          // Start delimiter
-  0x00, 0x09,    // Length (MSB, LSB) = 8 bytes of data after this field
-  0x01,          // Frame type = TX (16-bit address)
-  0x00,          // Frame ID (0 = no ACK)
-  0x20, 0x86,    // TEST: Destination address = 0x2086
-  0x01,          // Options = 0x01 to disable ACK
-  0x02, 0x00, 0x00, 0x00,// TEST: Pairing: 0x02 (byte 9), 0x00 (byte 10), 0x00 (byte 11), 0x00 (byte 12)
-  0x55           // Checksum (computed as 0xFF - sum of bytes after 0x7E)
-};
-*/
+
 // variables for the 7 seg display
 #define seven_seg_flash_duration 300
 #define SRCLK_port LATAbits.LATA0 // clock pin for SN74HC595 shift register
@@ -162,6 +152,7 @@ bool InitcontrollerFSM(uint8_t Priority)
   TRISBbits.TRISB3 = 0; // drive mode indicator LED
   ANSELBbits.ANSB3 = 0; // digital pin
   drive_indicator_LED = 0; // turn off the LED
+  paired_LED_is_on = false;
   // configure pins and ADC for X Y information of joysticks
   config_joystick_ADC();
   config_buttons();
@@ -260,6 +251,9 @@ ES_Event_t RuncontrollerFSM(ES_Event_t ThisEvent)
         // DB_printf("charge byte is out of range so we don't update servo\n");
       }
     }
+  }else if (ThisEvent.EventType == ES_BOAT_UNPAIRED){
+    stopAllTimers(); // stop all timers
+    InitcontrollerFSM(MyPriority);
   }
 
   switch (CurrentState)
@@ -468,7 +462,7 @@ static void adjust_7seg(uint8_t digit_input)
     SHORT_DELAY(); // Ensure clock low period
     bool bit_to_shift = (data >> i) & 0x01; // Get the bit to shift in
     SER_port = bit_to_shift;
-    DB_printf("shifting in bit %d at position %d\n", bit_to_shift, i);
+    //DB_printf("shifting in bit %d at position %d\n", bit_to_shift, i);
     SHORT_DELAY();
     SRCLK_port = 1; // Rising edge shifts in bit
     SHORT_DELAY();
@@ -501,5 +495,13 @@ static void enterChargeMode_s(void)
   txFrame[joy_x_byte] = joy_stick_neutral_msg; // set joystick values to neutral
   txFrame[joy_y_byte] = joy_stick_neutral_msg; // set joystick values to neutral
   txFrame[buttons_byte] = 0b00000000;          // set all button bits to 0
+  return;
+}
+
+static void stopAllTimers(void)
+{
+  ES_Timer_StopTimer(JoystickScan_TIMER);
+  ES_Timer_StopTimer(ServoUpdate_TIMER);
+  ES_Timer_StopTimer(sevenSeg_flash_TIMER);
   return;
 }
