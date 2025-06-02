@@ -243,15 +243,13 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
 
     case Pairing:
     {
-      PairingStateIndicator(SERVO_UNPAIRED_POS);
-      //PairingStateIndicator(0x2081);
+      PairingStateIndicator(SERVO_UNPAIRED_POS); // update servo for connection indicator
       PWMUpdate(127, 127); // Disable all actuators
       if(ThisEvent.EventType == ES_PAIRED)            
       {
-        PWMUpdate(NEUTRAL, NEUTRAL);
-        CurrentState = Idle;
-        PairingStateIndicator(SERVO_PAIRED_POS);
-        //PairingStateIndicator(0x2086);
+        PWMUpdate(NEUTRAL, NEUTRAL); // disable all actuators
+        CurrentState = Idle;  // enter Idle state
+        PairingStateIndicator(SERVO_PAIRED_POS);  // update servo for connection indicator
       }
     }
     break;
@@ -263,31 +261,30 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
       {
         case ES_IDLE:
         {
-          PWMUpdate(NEUTRAL, NEUTRAL);
-          CurrentState = Idle;
+          PWMUpdate(NEUTRAL, NEUTRAL);  // disable all actuators
+          CurrentState = Idle;  // stay in Idle state
         }
         break; 
 
         case ES_COMMAND:
         {
-          PWMUpdate(VELOCITY, OMEGA);
-          CurrentState = Driving;
+          PWMUpdate(VELOCITY, OMEGA);  // update thrusters with command values
+          CurrentState = Driving;  // enter Driving state
         }
         break;
 
         case ES_UNPAIRED:
         {
-          PWMUpdate(NEUTRAL, NEUTRAL);
-          PairingStateIndicator(SERVO_UNPAIRED_POS);
-          CurrentState = Pairing;
+          PWMUpdate(NEUTRAL, NEUTRAL);  // disable all actuators
+          PairingStateIndicator(SERVO_UNPAIRED_POS);  // update connection indicator to unpaired
+          CurrentState = Pairing;  // enter Pairing state
         }
         break;
 
         case ES_CHARGE:
         {
-          PWMUpdate(NEUTRAL, NEUTRAL);
-          CurrentState = Idle;\
-          DB_printf("Receive ES_ChARGE in Idle state\r\n");
+          PWMUpdate(NEUTRAL, NEUTRAL);  // disable all actuators
+          CurrentState = Idle;  // stay in Idle state
         }
         break; 
 
@@ -303,59 +300,53 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
       {
         case ES_IDLE:
         {
-          PWMUpdate(NEUTRAL, NEUTRAL);
-          CurrentState = Idle;
+          PWMUpdate(NEUTRAL, NEUTRAL);  // disable all actuators
+          CurrentState = Idle;  // enter Idle state
         }
         break; 
 
         case ES_COMMAND:
         {
-          PWMUpdate(VELOCITY, OMEGA);
+          PWMUpdate(VELOCITY, OMEGA);  // update thrusters with command values
         }
         break;
 
         case ES_DUMP:
         {
-            DB_printf("Detect ES_DUMP in Driving State\r\n");
           if (Power > 0) {
-            DumpState = (DumpState + 1) % 2;
-            DB_printf("DumpState is = %d\r\n", DumpState);
+            DumpState = (DumpState + 1) % 2;  // update dump state
             if(DumpState == 1)
             {
-              OC3RS = PR*SERVO_OPEN_POS/100;
+              OC3RS = PR*SERVO_OPEN_POS/100;  // if dump state == 1, then open the door
             }
             if(DumpState == 0)
             {
-              OC3RS = PR*SERVO_CLOSE_POS/100;
+              OC3RS = PR*SERVO_CLOSE_POS/100; // if dump state == 0, then close the door
             }
-            CurrentState = Driving;
-          }
-          else {
-            DB_printf("Error: DrivetrainService NO Power!!!\r\n");
+            CurrentState = Driving;  // stay in Driving state
           }
         }
         break;
 
         case ES_NOPWR:
         {
-          PWMUpdate(NEUTRAL, NEUTRAL);
-          CurrentState = No_Power;
+          PWMUpdate(NEUTRAL, NEUTRAL);  // disable all actuators
+          CurrentState = No_Power;  // stay in No_Power state
         }
         break;
 
         case ES_UNPAIRED:
         {
-          PWMUpdate(NEUTRAL, NEUTRAL);
-          PairingStateIndicator(SERVO_UNPAIRED_POS);
-          CurrentState = Pairing;
+          PWMUpdate(NEUTRAL, NEUTRAL);  // disable all actuators
+          PairingStateIndicator(SERVO_UNPAIRED_POS);  // update servo to indicate unpaired state
+          CurrentState = Pairing;  // enter Pairing state
         }
         break;
 
         case ES_CHARGE:
         {
-          PWMUpdate(NEUTRAL, NEUTRAL);
-          CurrentState = Idle;
-          DB_printf("Receive ES_ChARGE in Driving state\r\n");
+          PWMUpdate(NEUTRAL, NEUTRAL);  // disable all actuators
+          CurrentState = Idle;  // enter Idle state
         }
         break;
         
@@ -371,16 +362,16 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
       {
         case ES_UNPAIRED:
         {
-          PWMUpdate(NEUTRAL, NEUTRAL);
-          PairingStateIndicator(SERVO_UNPAIRED_POS);
-          CurrentState = Pairing;
+          PWMUpdate(NEUTRAL, NEUTRAL);  // disable all actuators
+          PairingStateIndicator(SERVO_UNPAIRED_POS);  // update servo to indicate unpaired state
+          CurrentState = Pairing;  // enter Pairing state
         }
         break;
 
         case ES_CHARGE:
         {
-          PWMUpdate(NEUTRAL, NEUTRAL);
-          CurrentState = Idle;
+          PWMUpdate(NEUTRAL, NEUTRAL);  // disable all actuators
+          CurrentState = Idle;  // enter Idle state
         }
         break;
         
@@ -404,11 +395,11 @@ void PWMUpdate(uint8_t vel, uint8_t om)
 {
   DB_printf("vel = %d om = %d\r\n", vel, om);
   if (vel == 127 && om == 127) {
-    OC1RS = PR * PWM_OFF/100;
+    OC1RS = PR * PWM_OFF/100;  // set hard turn off if both command are 127
     OC2RS = PR * PWM_OFF/100;
     return;
   }
-  else {
+  else {     // calculate duty cycle based on command from two joysticks
     int16_t intScaledLeft = (int16_t)ScaledLeft;
     int16_t intScaledRight = (int16_t)ScaledRight;
     int16_t intVel = (int16_t)vel;
@@ -418,23 +409,6 @@ void PWMUpdate(uint8_t vel, uint8_t om)
     intScaledRight = (intVel - (intOm - 127));
     uint8_t PWMLeft;
     uint8_t PWMRight;
-
-    //intScaledLeft = (intVel + (intOm - 127)) / TURN_WEIGHT;
-    //intScaledRight = (intVel - (intOm - 127)) / TURN_WEIGHT;
-
-    // Edge cases: vel 255, om 60, then intScaledleft = 188, intScaledRight = 322, should map to PWMleft ?, PWMRight 90
-    
-    // Edge cases: vel 255, om 0, then intScaledLeft = 128, intScaledRight = 382, should map to PWMleft 75, PWMRight 90
-    // Edge cases: vel 255, om 127, then intScaledleft = 255, intScaledRIght = 255, should map to PWMLeft 90, PWMRight 90
-    // Edge cases: vel 255, om 255, then intScaledLeft = 382, intScaledLeft = 127, should map to PWMleft 90, PWMRight 75
-
-    // Edge cases: vel 127, om 0, then intScaledLeft = 0, intScaledRight = 255, should map to PWMleft 60, PWMRight 90
-    // Edge cases: vel 127, om 127, then intScaledLeft = 0, intScaledRight = 0, should map to PWMleft 75, PWMRight 75
-    // Edge cases: vel 127, om 255, then intScaledLeft = 255, intScaledRight = 0, should map to PWMleft 90, PWMRight 60
-
-    // Edge cases: vel 0, om 0, then intScaledleft = -127, intScaledRight = 127, should map to PWMleft 75, PWMRight 60
-    // Edge cases: vel 0, om 127, then intScaledleft = 0, intScaledRight = 0 , should map to PWMleft 60, PWMRight 60
-    // Edge cases: vel 0, om 255, then intScaledleft = 127, intScaledRight = -127, should map to PWMleft 60, PWMRight 75
 
     if (intScaledLeft > 255) {
       intScaledLeft = 255;
@@ -448,9 +422,7 @@ void PWMUpdate(uint8_t vel, uint8_t om)
     if (intScaledRight < 0) {
       intScaledRight = 0;
     }
-    DB_printf("intVel = %d\r\n", intVel);
     if (intVel >= NEUTRAL) {
-      DB_printf("Debug 1");
       PWMLeft = PWM_OFF + (PWM_MAX - PWM_MIN) * (intScaledLeft - NEUTRAL)/255*TURN_WEIGHT;
       PWMRight = PWM_OFF + (PWM_MAX - PWM_MIN) *(intScaledRight - NEUTRAL)/255*TURN_WEIGHT;
     }
@@ -458,10 +430,9 @@ void PWMUpdate(uint8_t vel, uint8_t om)
       PWMLeft = PWM_OFF + (PWM_MAX - PWM_MIN) * (intScaledRight - NEUTRAL)/255*TURN_WEIGHT;
       PWMRight = PWM_OFF + (PWM_MAX - PWM_MIN) *(intScaledLeft - NEUTRAL)/255*TURN_WEIGHT;
     }
-    DB_printf("PWMLeft = %d PWMRight = %d\r\n", PWMLeft, PWMRight);
+    // update PWM
     OC1RS = PR * PWMLeft/100;
     OC2RS = PR * PWMRight/100;
-    // DB_printf("PWMRight = %d\r\n", PWMRight);
   }
 }
 
@@ -475,5 +446,5 @@ uint8_t BoundaryCheck(uint8_t Value)
 
 void PairingStateIndicator(uint8_t PWM)
 {
-  OC4RS = PR * PWM/100; // 208x with x = 1-6 by protocol
+  OC4RS = PR * PWM/100; // set connection indicators PWM value
 }
