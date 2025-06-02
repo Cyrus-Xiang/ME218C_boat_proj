@@ -52,6 +52,9 @@
 #define SERVO_OPEN_POS 95
 #define SERVO_CLOSE_POS 40
 
+#define SERVO_PAIRED_POS 40
+#define SERVO_UNPAIRED_POS 80
+
 #define ONE_SEC 1000
 #define HALF_SEC ONE_SEC/2
 
@@ -170,6 +173,7 @@ bool InitDrivetrainService(uint8_t Priority)
   //OC4RS = PR * (2081 - 2080)/8;
   OC4RS = PR * 4.6 / 8; 
   PWMUpdate(NEUTRAL, NEUTRAL);
+  PairingStateIndicator(SERVO_UNPAIRED_POS);
   CurrentState = InitPState;
   // post the initial transition event
   ThisEvent.EventType = ES_INIT;
@@ -239,12 +243,14 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
 
     case Pairing:
     {
+      PairingStateIndicator(SERVO_UNPAIRED_POS);
       //PairingStateIndicator(0x2081);
       PWMUpdate(127, 127); // Disable all actuators
       if(ThisEvent.EventType == ES_PAIRED)            
       {
         PWMUpdate(NEUTRAL, NEUTRAL);
         CurrentState = Idle;
+        PairingStateIndicator(SERVO_PAIRED_POS);
         //PairingStateIndicator(0x2086);
       }
     }
@@ -272,6 +278,7 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
         case ES_UNPAIRED:
         {
           PWMUpdate(NEUTRAL, NEUTRAL);
+          PairingStateIndicator(SERVO_UNPAIRED_POS);
           CurrentState = Pairing;
         }
         break;
@@ -296,6 +303,7 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
       {
         case ES_IDLE:
         {
+          PWMUpdate(NEUTRAL, NEUTRAL);
           CurrentState = Idle;
         }
         break; 
@@ -338,6 +346,7 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
         case ES_UNPAIRED:
         {
           PWMUpdate(NEUTRAL, NEUTRAL);
+          PairingStateIndicator(SERVO_UNPAIRED_POS);
           CurrentState = Pairing;
         }
         break;
@@ -363,6 +372,7 @@ ES_Event_t RunDrivetrainService(ES_Event_t ThisEvent)
         case ES_UNPAIRED:
         {
           PWMUpdate(NEUTRAL, NEUTRAL);
+          PairingStateIndicator(SERVO_UNPAIRED_POS);
           CurrentState = Pairing;
         }
         break;
@@ -463,14 +473,7 @@ uint8_t BoundaryCheck(uint8_t Value)
 }
 
 
-void PairingStateIndicator(uint16_t Address)
+void PairingStateIndicator(uint8_t PWM)
 {
-  /*
-  switch sourceAddressLSB:
-  {
-    case 0x81:
-
-  }
-  */
-  OC4RS = PR * (Address - 0x2080)/8; // 208x with x = 1-6 by protocol
+  OC4RS = PR * PWM/100; // 208x with x = 1-6 by protocol
 }

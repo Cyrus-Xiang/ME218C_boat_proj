@@ -210,7 +210,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
         {  
           if (ThisEvent.EventParam == POWER_TIMER)
           {
-            //Power -= 1;
+            Power -= 1;
             if (Power == NO_POWER)
             {
               ES_Event_t Event2Post;
@@ -254,7 +254,7 @@ ES_Event_t RunPowerService(ES_Event_t ThisEvent)
           if (ThisEvent.EventParam == POWER_TIMER)
           {
             ES_Timer_InitTimer(POWER_TIMER, DECHARGE_PERIOD);
-            //Power -= 1;
+            Power -= 1;
             if (Power == NO_POWER)
             {
               ES_Event_t Event2Post;
