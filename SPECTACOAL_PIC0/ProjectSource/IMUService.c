@@ -91,7 +91,7 @@ bool InitIMUService(uint8_t Priority)
    *******************************************/
   configSPI();
   LSM6DS33_Init();
-  ES_Timer_InitTimer(IMUSetup_Delay_TIMER, 1000);
+   ES_Timer_InitTimer(IMUUpdate_TIMER, IMU_read_interval);
   // post the initial transition event
   ThisEvent.EventType = ES_INIT;
   if (ES_PostToService(MyPriority, ThisEvent) == true)
@@ -214,62 +214,10 @@ ES_Event_t RunIMUService(ES_Event_t ThisEvent)
   // uint8_t ctrl1_val = LSM6DS33_ReadReg(0x10);
   // DB_printf("CTRL1_XL = 0x%x\r\n", ctrl1_val);
 }
-else if (ThisEvent.EventType == ES_TIMEOUT && ThisEvent.EventParam == IMUSetup_Delay_TIMER)
-{
-  DB_printf("accelerometer is enabled\r\n");
-  ES_Timer_InitTimer(IMUUpdate_TIMER, IMU_read_interval);
-  // === Enable Accel XYZ axes ===
-  LATAbits.LATA3 = 0;
-  SPI1BUF = 0x18 & 0x7F; // CTRL9_XL
-  while (!SPI1STATbits.SPIRBF)
-    ;
-  SPI1BUF;
-  SPI1BUF = 0x38; // Enable X, Y, Z axes
-  while (!SPI1STATbits.SPIRBF)
-    ;
-  SPI1BUF;
-  LATAbits.LATA3 = 1;
 
-  // === Configure Accelerometer ===
-  LATAbits.LATA3 = 0;
-  SPI1BUF = 0x10 & 0x7F; // CTRL1_XL
-  while (!SPI1STATbits.SPIRBF)
-    ;
-  SPI1BUF;
-  SPI1BUF = 0x60; // 416 Hz, ±2g
-  while (!SPI1STATbits.SPIRBF)
-    ;
-  SPI1BUF;
-  LATAbits.LATA3 = 1;
 
-  // === Enable Gyro XYZ axes ===
-  LATAbits.LATA3 = 0;
-  SPI1BUF = 0x19 & 0x7F; // CTRL10_C
-  while (!SPI1STATbits.SPIRBF)
-    ;
-  SPI1BUF;
-  SPI1BUF = 0x38; // Enable X, Y, Z axes
-  while (!SPI1STATbits.SPIRBF)
-    ;
-  SPI1BUF;
-  LATAbits.LATA3 = 1;
 
-  // === Configure Gyroscope ===
-  LATAbits.LATA3 = 0;
-  SPI1BUF = 0x11 & 0x7F; // CTRL2_G
-  while (!SPI1STATbits.SPIRBF)
-    ;
-  SPI1BUF;
-  SPI1BUF = 0x60; // 416 Hz, ±250 dps
-  while (!SPI1STATbits.SPIRBF)
-    ;
-  SPI1BUF;
-  LATAbits.LATA3 = 1;
-}
-else
-{
-  // Handle other events if necessary
-}
+
 return ReturnEvent;
 }
 
@@ -330,6 +278,55 @@ static void LSM6DS33_Init(void)
   SPI1BUF;
   LATAbits.LATA3 = 1;
   DB_printf("IMU is reset\r\n");
+
+  // === Enable Accel XYZ axes ===
+  LATAbits.LATA3 = 0;
+  SPI1BUF = 0x18 & 0x7F; // CTRL9_XL
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  SPI1BUF;
+  SPI1BUF = 0x38; // Enable X, Y, Z axes
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  SPI1BUF;
+  LATAbits.LATA3 = 1;
+
+  // === Configure Accelerometer ===
+  LATAbits.LATA3 = 0;
+  SPI1BUF = 0x10 & 0x7F; // CTRL1_XL
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  SPI1BUF;
+  SPI1BUF = 0x60; // 416 Hz, ±2g
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  SPI1BUF;
+  LATAbits.LATA3 = 1;
+  DB_printf("accelerometer is enabled\r\n");
+  // === Enable Gyro XYZ axes ===
+  LATAbits.LATA3 = 0;
+  SPI1BUF = 0x19 & 0x7F; // CTRL10_C
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  SPI1BUF;
+  SPI1BUF = 0x38; // Enable X, Y, Z axes
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  SPI1BUF;
+  LATAbits.LATA3 = 1;
+
+  // === Configure Gyroscope ===
+  LATAbits.LATA3 = 0;
+  SPI1BUF = 0x11 & 0x7F; // CTRL2_G
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  SPI1BUF;
+  SPI1BUF = 0x60; // 416 Hz, ±250 dps
+  while (!SPI1STATbits.SPIRBF)
+    ;
+  SPI1BUF;
+  LATAbits.LATA3 = 1;
+  DB_printf("gyroscope is enabled\r\n");
 }
 uint8_t LSM6DS33_ReadReg(uint8_t reg_addr)
 {
